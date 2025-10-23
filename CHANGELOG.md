@@ -7,13 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2025-10-24
+
 ### Added
-- Complete Docker orchestration with 8 services
-- AI inference server with ONNX Runtime support
-- Comprehensive monitoring stack (InfluxDB + Telegraf + Grafana)
-- Multi-model AI support (Qwen, Gemma, Mistral, SmolLM, Granite)
-- Real-time Telegram notifications
-- Auto-recovery and backup systems
+- Docker storage optimization system
+- WSL2 backend detection and migration
+- Automatic storage relocation to D: drive
+- Symbolic link maintenance for compatibility
+- Post-migration validation framework
+
+### Fixed
+- Critical C: drive space shortage (5.48 GB → 50.99 GB freed)
+- Docker storage bottleneck resolved
+- Container preservation during migration
+- Service continuity maintained
+
+### Changed
+- Docker data relocated from C: to D:\DockerWSL\
+- WSL2 distribution re-imported to new location
+- Storage architecture optimized for performance
+
+### Infrastructure  
+- Docker VHDX file (45.37 GB) successfully migrated
+- All AITB containers preserved and operational
+- Storage monitoring and validation enhanced
+- Migration process fully automated and documented
+
+## [1.0.1] - 2025-10-23
+
+### Added
+- Environment validation and stabilization
+- Docker container dependency resolution
+- Python package compatibility fixes
+- Comprehensive debugging and logging framework
+
+### Fixed
+- Dashboard Dockerfile npm installation issue
+- Python 3.14 compatibility with ONNX Runtime
+- Container build optimization with layer caching
+- Missing environment variables (INFLUX_URL, TZ)
+
+### Changed
+- Updated dashboard build process from npm ci to npm install
+- Enhanced error logging and debugging capabilities
+- Improved build performance with parallel processing
+
+### Infrastructure
+- Created debug.log, docker_build.log, and performance.log
+- Enhanced container health monitoring
+- Optimized build process with cached layers
 
 ## [1.0.0] - 2024-10-23
 

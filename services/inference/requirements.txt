@@ -4,10 +4,10 @@ pydantic==2.5.0
 numpy==1.24.3
 pandas==2.0.3
 scikit-learn==1.3.0
-onnxruntime==1.16.3
-transformers==4.35.2
-torch==2.1.1
-torchvision==0.16.1
+# onnxruntime>=1.15.0  # Temporarily disabled due to executable stack issues
+# transformers==4.35.2  # Temporarily disabled - depends on torch
+# torch==2.1.1      # Temporarily disabled - large download causing build failures  
+# torchvision==0.16.1  # Temporarily disabled
 requests==2.31.0
 aiofiles==23.2.0
 python-multipart==0.0.6
