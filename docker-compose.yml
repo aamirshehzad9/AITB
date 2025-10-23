@@ -1,0 +1,252 @@
+version: '3.8'
+
+services:
+  # InfluxDB v2 - Time Series Database for Metrics
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: aitb-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USERNAME:-aitb-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD:-aitb_influx_password}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-aitb-org}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-aitb}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-aitb_super_secret_token}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+      - ./logs:/var/log/influxdb2
+    ports:
+      - "8086:8086"
+    networks:
+      - aitb-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # AI Trading Bot - Core Trading Engine
+  bot:
+    build:
+      context: ./services/bot
+      dockerfile: Dockerfile
+    container_name: aitb-bot
+    environment:
+      # Trading Configuration
+      COINAPI_KEY: ${COINAPI_KEY:-your_coinapi_key_here}
+      COINMARKETCAP_KEY: ${COINMARKETCAP_KEY:-your_cmc_key_here}
+      # Database
+      DATABASE_PATH: /app/data/db
+      # AI Models
+      MODELS_PATH: /app/data/models
+      MODEL_REGISTRY: /app/data/models/model_registry.json
+      # Inference Service
+      INFERENCE_URL: http://inference:8001
+      # Monitoring
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-aitb_super_secret_token}
+      INFLUX_ORG: ${INFLUX_ORG:-aitb-org}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-aitb}
+      # Notifications
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN:-your_telegram_bot_token}
+      TG_CHAT_ID: ${TG_CHAT_ID:-your_telegram_chat_id}
+      # Runtime
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PYTHONPATH: /app
+    volumes:
+      - aitb_data:/app/data
+      - aitb_models:/app/data/models
+      - aitb_logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - aitb-network
+    depends_on:
+      - influxdb
+      - inference
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AI Inference Server - FastAPI ML Model Service
+  inference:
+    build:
+      context: ./services/inference
+      dockerfile: Dockerfile
+    container_name: aitb-inference
+    environment:
+      # Model Configuration
+      MODELS_PATH: /app/data/models
+      MODEL_REGISTRY: /app/data/models/model_registry.json
+      HF_TOKEN: ${HF_TOKEN:-your_huggingface_token}
+      # Runtime
+      UVICORN_HOST: 0.0.0.0
+      UVICORN_PORT: 8001
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Performance
+      OMP_NUM_THREADS: 4
+      ONNX_NUM_THREADS: 4
+    volumes:
+      - aitb_models:/app/data/models
+      - aitb_logs:/app/logs
+    ports:
+      - "8001:8001"
+    networks:
+      - aitb-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web Dashboard - React Frontend
+  dashboard:
+    build:
+      context: ./services/dashboard
+      dockerfile: Dockerfile
+    container_name: aitb-dashboard
+    environment:
+      REACT_APP_API_URL: http://bot:8000
+      REACT_APP_INFERENCE_URL: http://inference:8001
+      REACT_APP_GRAFANA_URL: http://grafana:3000
+      NODE_ENV: production
+    volumes:
+      - aitb_logs:/app/logs
+    ports:
+      - "3000:3000"
+    networks:
+      - aitb-network
+    depends_on:
+      - bot
+      - inference
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Telegraf - Metrics Collection Agent
+  telegraf:
+    image: telegraf:1.28-alpine
+    container_name: aitb-telegraf
+    environment:
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-aitb_super_secret_token}
+      INFLUX_ORG: ${INFLUX_ORG:-aitb-org}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-aitb}
+    volumes:
+      - ./config/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/rootfs/proc:ro
+      - /sys:/rootfs/sys:ro
+      - /etc:/rootfs/etc:ro
+      - aitb_logs:/var/log/telegraf
+    networks:
+      - aitb-network
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+    privileged: true
+
+  # Grafana - Metrics Visualization Dashboard
+  grafana:
+    image: grafana/grafana-oss:10.2.0
+    container_name: aitb-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-aitb_grafana_password}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+      - aitb_logs:/var/log/grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - aitb-network
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Telegram Notifier - Alert and Notification Service
+  notifier:
+    build:
+      context: ./services/notifier
+      dockerfile: Dockerfile
+    container_name: aitb-notifier
+    environment:
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN:-your_telegram_bot_token}
+      TG_CHAT_ID: ${TG_CHAT_ID:-your_telegram_chat_id}
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-aitb_super_secret_token}
+      INFLUX_ORG: ${INFLUX_ORG:-aitb-org}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-aitb}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - aitb_logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - aitb-network
+    depends_on:
+      - influxdb
+      - bot
+    restart: unless-stopped
+
+  # Watchtower - Container Auto-Update Service
+  watchtower:
+    image: containrrr/watchtower:1.6.0
+    container_name: aitb-watchtower
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_SCHEDULE: "0 0 2 * * *"  # Daily at 2 AM
+      WATCHTOWER_NOTIFICATIONS: telegram
+      WATCHTOWER_NOTIFICATION_TELEGRAM_TOKEN: ${TG_BOT_TOKEN:-your_telegram_bot_token}
+      WATCHTOWER_NOTIFICATION_TELEGRAM_CHAT_ID: ${TG_CHAT_ID:-your_telegram_chat_id}
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - aitb_logs:/var/log/watchtower
+    networks:
+      - aitb-network
+    restart: unless-stopped
+
+# Named Volumes for Persistent Data
+volumes:
+  # Database and Time Series Data
+  influxdb_data:
+    driver: local
+  influxdb_config:
+    driver: local
+  grafana_data:
+    driver: local
+  
+  # Application Data
+  aitb_data:
+    driver: local
+  aitb_models:
+    driver: local
+  aitb_logs:
+    driver: local
+
+# Network Configuration
+networks:
+  aitb-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

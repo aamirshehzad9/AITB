@@ -1,0 +1,108 @@
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Data directories - sensitive trading data
+/data/
+data/
+*.db
+*.sqlite
+*.duckdb
+
+# Logs - can be regenerated
+/logs/
+logs/
+*.log
+
+# AI Models - too large for git
+/models/
+models/
+*.onnx
+*.pt
+*.bin
+*.safetensors
+
+# Secrets and certificates
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# Docker volumes data
+docker-volumes/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE and Editor files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Trading specific
+trades_backup/
+market_data_cache/
+portfolio_snapshots/
+*.csv.gz
+
+# Grafana provisioning secrets
+grafana-data/
+influxdb-data/
+
+# Docker
+.dockerignore
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Kubernetes
+*.kubeconfig
+
+# Local development
+.local/
+local/
+scratch/
+test_data/
