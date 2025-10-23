@@ -17,6 +17,9 @@ data/
 logs/
 *.log
 
+# Exception: Keep activity log for project tracking
+!logs/activity.log
+
 # AI Models - too large for git
 /models/
 models/
