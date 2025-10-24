@@ -1,0 +1,8 @@
+# AITB Dashboard Service Dependencies
+# Streamlit-based real-time trading visualization
+
+streamlit==1.38.0
+plotly==5.22.0
+influxdb-client==1.49.0
+pandas==2.2.2
+requests==2.32.3
