@@ -1,3 +1,26 @@
+// Market prices loading function
+async function loadMarketPrices() {
+    const resp = await fetch('/api/market/prices');
+    const data = await resp.json();
+    const marketList = document.querySelector('#market-list');
+    marketList.innerHTML = '';
+    data.slice(0, 20).forEach(item => {
+        const symbol = item.symbol;
+        if (symbol.endsWith('USDT')) {
+            const li = document.createElement('li');
+            li.classList.add('market-item');
+            li.innerHTML = `
+                <span>${symbol}</span>
+                <span>${parseFloat(item.price).toFixed(2)}</span>
+            `;
+            marketList.appendChild(li);
+        }
+    });
+}
+
+setInterval(loadMarketPrices, 5000);
+loadMarketPrices();
+
 // AITB Trading Interface - Binance-style UX with Lightweight Charts and SignalR
 class TradingInterface {
     constructor() {
@@ -17,7 +40,7 @@ class TradingInterface {
             await this.initSignalR();
             await this.initChart();
             await this.loadMarkets();
-            await this.loadInitialData();
+            await this.startBinanceStream();
             this.setupEventListeners();
             this.updateConnectionStatus();
             
@@ -34,16 +57,17 @@ class TradingInterface {
             // Create SignalR connection
             this.connection = new signalR.HubConnectionBuilder()
                 .withUrl("/marketHub")
+                .configureLogging(signalR.LogLevel.Information)
                 .withAutomaticReconnect()
                 .build();
 
-            // Handle price updates
-            this.connection.on("PriceUpdate", (data) => {
-                this.handlePriceUpdate(data);
+            // Handle ticker updates from Binance WebSocket
+            this.connection.on("ReceiveTicker", (symbol, data) => {
+                this.handleTickerUpdate(symbol, data);
             });
 
-            // Handle kline updates
-            this.connection.on("KlineUpdate", (data) => {
+            // Handle kline updates from Binance WebSocket
+            this.connection.on("ReceiveKline", (data) => {
                 this.handleKlineUpdate(data);
             });
 
@@ -56,7 +80,7 @@ class TradingInterface {
             this.connection.onreconnected(() => {
                 console.log('SignalR reconnected');
                 this.updateConnectionStatus(true);
-                this.subscribeToSymbol(this.currentSymbol, this.currentInterval);
+                this.startBinanceStream();
             });
 
             this.connection.onclose(() => {
@@ -78,17 +102,17 @@ class TradingInterface {
     async initChart() {
         try {
             // Create lightweight chart
-            const chartContainer = document.getElementById('candles');
+            const chartContainer = document.getElementById('chart') || document.getElementById('candles');
             if (!chartContainer) {
                 throw new Error('Chart container not found');
             }
 
             this.chart = LightweightCharts.createChart(chartContainer, {
                 width: chartContainer.clientWidth,
-                height: 640,
+                height: 600,
                 layout: {
-                    background: { color: '#181A20' },
-                    textColor: '#FAFAFA',
+                    background: { color: '#0B0E11' },
+                    textColor: '#DDD',
                 },
                 grid: {
                     vertLines: { color: '#2B3139' },
@@ -107,21 +131,17 @@ class TradingInterface {
                 },
             });
 
-            // Add candlestick series
-            this.candleSeries = this.chart.addCandlestickSeries({
-                upColor: '#0ECB81',
-                downColor: '#F6465D',
-                borderDownColor: '#F6465D',
-                borderUpColor: '#0ECB81',
-                wickDownColor: '#F6465D',
-                wickUpColor: '#0ECB81',
+            // Add line series for real-time price
+            this.candleSeries = this.chart.addLineSeries({ 
+                color: '#F0B90B',
+                lineWidth: 2
             });
 
             // Handle chart resize
             window.addEventListener('resize', () => {
                 this.chart.applyOptions({
                     width: chartContainer.clientWidth,
-                    height: 640,
+                    height: 600,
                 });
             });
 
@@ -132,39 +152,68 @@ class TradingInterface {
         }
     }
 
+    async startBinanceStream() {
+        try {
+            // Start the Binance WebSocket stream for the current symbol
+            const response = await fetch(`/api/market/stream/${this.currentSymbol}`);
+            const result = await response.json();
+            
+            if (response.ok) {
+                console.log(`Started Binance stream: ${result.message}`);
+            } else {
+                console.error(`Failed to start stream: ${result.error}`);
+                this.showError(`Failed to start stream: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Error starting Binance stream:', error);
+            this.showError('Failed to start Binance stream');
+        }
+    }
+
     async loadMarkets() {
         try {
-            const response = await fetch('/api/market/markets');
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const markets = await response.json();
-            this.markets.clear();
+            // Load some popular markets for demo
+            const popularSymbols = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'DOTUSDT', 'LINKUSDT'];
             
-            const marketsList = document.querySelector('.markets-list');
-            if (!marketsList) {
-                throw new Error('Markets list container not found');
+            for (const symbol of popularSymbols) {
+                try {
+                    const response = await fetch(`/api/market/ticker/${symbol}`);
+                    if (response.ok) {
+                        const ticker = await response.json();
+                        this.markets.set(symbol, {
+                            symbol,
+                            displaySymbol: symbol.replace('USDT', '/USDT'),
+                            price: parseFloat(ticker.lastPrice || ticker.c || '0').toFixed(2),
+                            priceChangePercent: parseFloat(ticker.priceChangePercent || ticker.P || '0').toFixed(2)
+                        });
+                    }
+                } catch (err) {
+                    console.warn(`Failed to load ticker for ${symbol}:`, err);
+                }
             }
 
-            marketsList.innerHTML = '';
-
-            markets.forEach(market => {
-                this.markets.set(market.symbol, market);
-                
-                const marketItem = this.createMarketItem(market);
-                marketsList.appendChild(marketItem);
-            });
-
-            console.log(`Loaded ${markets.length} markets`);
+            console.log(`Loaded ${this.markets.size} markets`);
+            this.updateMarketsList();
         } catch (error) {
             console.error('Failed to load markets:', error);
             this.showError('Failed to load markets');
         }
     }
 
+    updateMarketsList() {
+        const marketsList = document.querySelector('#market-list') || document.querySelector('.markets-list');
+        if (!marketsList) return;
+
+        marketsList.innerHTML = '';
+
+        this.markets.forEach(market => {
+            const marketItem = this.createMarketItem(market);
+            marketsList.appendChild(marketItem);
+        });
+    }
+
     createMarketItem(market) {
-        const item = document.createElement('div');
+        const item = document.createElement('li');
         item.className = 'market-item';
         item.dataset.symbol = market.symbol;
         
@@ -172,15 +221,13 @@ class TradingInterface {
             item.classList.add('active');
         }
 
-        const priceChangeClass = market.changePercent24h >= 0 ? 'positive' : 'negative';
-        const priceChangeSign = market.changePercent24h >= 0 ? '+' : '';
+        const priceChangeClass = parseFloat(market.priceChangePercent) >= 0 ? 'positive' : 'negative';
+        const priceChangeSign = parseFloat(market.priceChangePercent) >= 0 ? '+' : '';
 
         item.innerHTML = `
-            <div class="market-symbol">${market.displaySymbol}</div>
-            <div class="market-price">
-                <div class="market-price-value ${priceChangeClass}">${market.price}</div>
-                <div class="market-price-change ${priceChangeClass}">${priceChangeSign}${market.priceChangePercent}%</div>
-            </div>
+            <span class="market-symbol">${market.displaySymbol}</span>
+            <span class="market-price ${priceChangeClass}">$${market.price}</span>
+            <span class="market-change ${priceChangeClass}">${priceChangeSign}${market.priceChangePercent}%</span>
         `;
 
         item.addEventListener('click', () => {
@@ -204,25 +251,11 @@ class TradingInterface {
                 selectedItem.classList.add('active');
             }
 
-            // Update symbol info
-            const market = this.markets.get(symbol);
-            if (market) {
-                this.updateSymbolInfo(market);
-            }
-
-            // Unsubscribe from old symbol
-            if (this.isConnected) {
-                await this.connection.invoke("Unsubscribe", this.currentSymbol, this.currentInterval);
-            }
-
             // Update current symbol
             this.currentSymbol = symbol;
 
-            // Load new data and subscribe
-            await this.loadChartData();
-            if (this.isConnected) {
-                await this.subscribeToSymbol(symbol, this.currentInterval);
-            }
+            // Start new stream
+            await this.startBinanceStream();
 
             console.log(`Selected symbol: ${symbol}`);
         } catch (error) {
@@ -231,170 +264,91 @@ class TradingInterface {
         }
     }
 
-    async selectTimeframe(interval) {
-        if (interval === this.currentInterval) return;
-
+    handleTickerUpdate(symbol, data) {
         try {
-            // Update UI
-            document.querySelectorAll('.timeframe-pill').forEach(pill => {
-                pill.classList.remove('active');
-            });
-            
-            const selectedPill = document.querySelector(`[data-interval="${interval}"]`);
-            if (selectedPill) {
-                selectedPill.classList.add('active');
-            }
+            if (symbol === this.currentSymbol) {
+                const price = parseFloat(data.price);
+                const timestamp = data.timestamp / 1000; // Convert to seconds
 
-            // Unsubscribe from old interval
-            if (this.isConnected) {
-                await this.connection.invoke("Unsubscribe", this.currentSymbol, this.currentInterval);
-            }
+                // Update chart with new price point
+                this.candleSeries.update({ 
+                    time: timestamp, 
+                    value: price 
+                });
 
-            // Update current interval
-            this.currentInterval = interval;
-
-            // Load new data and subscribe
-            await this.loadChartData();
-            if (this.isConnected) {
-                await this.subscribeToSymbol(this.currentSymbol, interval);
-            }
-
-            console.log(`Selected timeframe: ${interval}`);
-        } catch (error) {
-            console.error('Failed to select timeframe:', error);
-            this.showError('Failed to change timeframe');
-        }
-    }
-
-    async loadInitialData() {
-        await this.loadChartData();
-        if (this.isConnected) {
-            await this.subscribeToSymbol(this.currentSymbol, this.currentInterval);
-        }
-    }
-
-    async loadChartData() {
-        try {
-            const url = `/api/klines?symbol=${this.currentSymbol}&interval=${this.currentInterval}&limit=500`;
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const klines = await response.json();
-            
-            if (klines && klines.length > 0) {
-                this.candleSeries.setData(klines);
-                // Always call fitContent to ensure chart visibility
-                this.chart.timeScale().fitContent();
-                console.log(`Loaded ${klines.length} klines for ${this.currentSymbol} ${this.currentInterval}`);
-            } else {
-                console.warn('No kline data received');
-            }
-        } catch (error) {
-            console.error('Failed to load chart data:', error);
-            this.showError('Failed to load chart data');
-        }
-    }
-
-    async subscribeToSymbol(symbol, interval) {
-        try {
-            if (this.connection && this.isConnected) {
-                await this.connection.invoke("Subscribe", symbol, interval);
-                console.log(`Subscribed to ${symbol} ${interval}`);
-            }
-        } catch (error) {
-            console.error('Failed to subscribe to symbol:', error);
-        }
-    }
-
-    handlePriceUpdate(data) {
-        try {
-            if (data && data.symbol) {
-                const market = this.markets.get(data.symbol);
-                if (market) {
-                    // Update market data
-                    market.price = data.price;
-                    market.priceChangePercent = data.priceChangePercent;
-
-                    // Update UI with animation
-                    const marketItem = document.querySelector(`[data-symbol="${data.symbol}"]`);
-                    if (marketItem) {
-                        const priceElement = marketItem.querySelector('.market-price-value');
-                        const changeElement = marketItem.querySelector('.market-price-change');
+                // Update price display
+                const priceElements = document.querySelectorAll(`#price-${symbol}, .current-price`);
+                priceElements.forEach(el => {
+                    if (el) {
+                        el.textContent = `$${price.toFixed(2)}`;
                         
-                        if (priceElement && changeElement) {
-                            const priceChangeClass = data.priceChangePercent >= 0 ? 'positive' : 'negative';
-                            const priceChangeSign = data.priceChangePercent >= 0 ? '+' : '';
-
-                            // Animate price change
-                            priceElement.style.transition = 'color 0.3s';
-                            priceElement.textContent = data.price;
-                            priceElement.className = `market-price-value ${priceChangeClass}`;
-                            
-                            changeElement.textContent = `${priceChangeSign}${data.priceChangePercent}%`;
-                            changeElement.className = `market-price-change ${priceChangeClass}`;
-                        }
+                        // Add price change animation
+                        el.style.transition = 'color 0.3s';
+                        el.style.color = '#F0B90B';
+                        setTimeout(() => {
+                            el.style.color = '';
+                        }, 300);
                     }
+                });
 
-                    // Update symbol info if it's the current symbol
-                    if (data.symbol === this.currentSymbol) {
-                        this.updateSymbolInfo(market);
-                    }
+                // Update market list
+                const market = this.markets.get(symbol);
+                if (market) {
+                    market.price = price.toFixed(2);
+                    market.priceChangePercent = parseFloat(data.priceChange || '0').toFixed(2);
+                    this.updateMarketItem(symbol, market);
                 }
             }
         } catch (error) {
-            console.error('Error handling price update:', error);
+            console.error('Error handling ticker update:', error);
         }
     }
 
     handleKlineUpdate(data) {
         try {
-            if (data && data.symbol === this.currentSymbol && data.interval === this.currentInterval) {
-                const kline = {
-                    time: data.time / 1000, // Convert to seconds for Lightweight Charts
-                    open: data.open,
-                    high: data.high,
-                    low: data.low,
-                    close: data.close
-                };
+            if (data && data.symbol === this.currentSymbol) {
+                const price = parseFloat(data.close);
+                const timestamp = data.closeTime / 1000; // Convert to seconds
 
-                this.candleSeries.update(kline);
+                // Update chart
+                this.candleSeries.update({ 
+                    time: timestamp, 
+                    value: price 
+                });
             }
         } catch (error) {
             console.error('Error handling kline update:', error);
         }
     }
 
-    updateSymbolInfo(market) {
-        try {
-            const symbolElement = document.querySelector('.symbol-info h2');
-            const changeElement = document.querySelector('.symbol-change');
+    updateMarketItem(symbol, market) {
+        const marketItem = document.querySelector(`[data-symbol="${symbol}"]`);
+        if (marketItem) {
+            const priceElement = marketItem.querySelector('.market-price');
+            const changeElement = marketItem.querySelector('.market-change');
             
-            if (symbolElement) {
-                symbolElement.textContent = market.displaySymbol;
-            }
-            
-            if (changeElement) {
-                const priceChangeClass = market.changePercent24h >= 0 ? 'positive' : 'negative';
-                const priceChangeSign = market.changePercent24h >= 0 ? '+' : '';
+            if (priceElement && changeElement) {
+                const priceChangeClass = parseFloat(market.priceChangePercent) >= 0 ? 'positive' : 'negative';
+                const priceChangeSign = parseFloat(market.priceChangePercent) >= 0 ? '+' : '';
+
+                priceElement.textContent = `$${market.price}`;
+                priceElement.className = `market-price ${priceChangeClass}`;
                 
-                changeElement.textContent = `${market.price} (${priceChangeSign}${market.priceChangePercent}%)`;
-                changeElement.className = `symbol-change ${priceChangeClass}`;
+                changeElement.textContent = `${priceChangeSign}${market.priceChangePercent}%`;
+                changeElement.className = `market-change ${priceChangeClass}`;
             }
-        } catch (error) {
-            console.error('Error updating symbol info:', error);
         }
     }
 
     updateConnectionStatus(connected) {
         this.isConnected = connected !== false;
-        const statusElement = document.querySelector('[data-account="data-feed"]');
-        if (statusElement) {
-            statusElement.textContent = this.isConnected ? 'Connected' : 'Disconnected';
-            statusElement.className = this.isConnected ? 'account-value positive' : 'account-value negative';
-        }
+        const statusElements = document.querySelectorAll('[data-account="data-feed"], .connection-status');
+        statusElements.forEach(statusElement => {
+            if (statusElement) {
+                statusElement.textContent = this.isConnected ? 'Connected' : 'Disconnected';
+                statusElement.className = this.isConnected ? 'account-value positive' : 'account-value negative';
+            }
+        });
         console.log(`Connection status: ${this.isConnected ? 'Connected' : 'Disconnected'}`);
     }
 
@@ -417,7 +371,6 @@ class TradingInterface {
             startBtn.addEventListener('click', () => {
                 console.log('Start bot clicked');
                 this.showInfo('Bot started (demo mode)');
-                this.updateAIInsight('ACTIVE', 85, 'Bot trading initiated');
             });
         }
         
@@ -425,32 +378,7 @@ class TradingInterface {
             stopBtn.addEventListener('click', () => {
                 console.log('Stop bot clicked');
                 this.showInfo('Bot stopped (demo mode)');
-                this.updateAIInsight('PAUSED', 0, 'Bot trading halted');
             });
-        }
-
-        // Quick action buttons
-        document.querySelectorAll('.btn').forEach(btn => {
-            if (!btn.classList.contains('btn-start') && !btn.classList.contains('btn-stop')) {
-                btn.addEventListener('click', () => {
-                    console.log(`${btn.textContent} clicked`);
-                    this.showInfo(`${btn.textContent} feature coming soon`);
-                });
-            }
-        });
-    }
-
-    updateAIInsight(signal, confidence, reason) {
-        const signalElement = document.querySelector('.ai-signal');
-        const confidenceElement = document.querySelector('.ai-confidence');
-        
-        if (signalElement) {
-            signalElement.textContent = signal;
-            signalElement.className = `ai-signal ${signal.toLowerCase()}`;
-        }
-        
-        if (confidenceElement) {
-            confidenceElement.textContent = `${confidence}% confidence - ${reason}`;
         }
     }
 

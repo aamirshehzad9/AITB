@@ -57,6 +57,9 @@ if (Environment.GetCommandLineArgs().Contains("--force-port"))
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load .env file
+DotNetEnv.Env.Load(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
+
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -73,6 +76,9 @@ builder.Services.AddSignalR();
 
 // Register custom services
 builder.Services.AddSingleton<IPriceFeed, BinancePriceFeed>();
+builder.Services.AddSingleton<BinanceService>();
+builder.Services.AddSingleton<BinanceStreamService>();
+builder.Services.AddSingleton<BinanceHttpService>();
 
 // Add HttpClient for external API calls
 builder.Services.AddHttpClient();
@@ -109,7 +115,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 // Map SignalR Hub
-app.MapHub<MarketDataHub>("/marketHub");
+app.MapHub<MarketHub>("/marketHub");
 
 // Health endpoints
 app.MapGet("/health/live", () => "OK");

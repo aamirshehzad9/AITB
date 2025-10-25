@@ -4,50 +4,21 @@ using AITB.WebApp.Services;
 namespace AITB.WebApp.Controllers.Api
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/market")]
     public class MarketController : ControllerBase
     {
-        private readonly IPriceFeed _priceFeed;
-        private readonly ILogger<MarketController> _logger;
+        private readonly BinanceService _binance;
 
-        public MarketController(IPriceFeed priceFeed, ILogger<MarketController> logger)
+        public MarketController(BinanceService binance)
         {
-            _priceFeed = priceFeed;
-            _logger = logger;
+            _binance = binance;
         }
 
-        [HttpGet("markets")]
-        public async Task<IActionResult> GetMarkets()
-        {
-            try
-            {
-                var markets = await _priceFeed.GetMarketsAsync();
-                return Ok(markets);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get markets");
-                return StatusCode(500, new { error = "Failed to retrieve market data" });
-            }
-        }
+        [HttpGet("prices")]
+        public async Task<IActionResult> GetAll() => Ok(await _binance.GetMarketListAsync());
 
         [HttpGet("ticker/{symbol}")]
         public async Task<IActionResult> GetTicker(string symbol)
-        {
-            try
-            {
-                var ticker = await _priceFeed.GetTickerAsync(symbol);
-                if (ticker == null)
-                {
-                    return NotFound(new { error = $"Ticker not found for symbol: {symbol}" });
-                }
-                return Ok(ticker);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get ticker for {Symbol}", symbol);
-                return StatusCode(500, new { error = "Failed to retrieve ticker data" });
-            }
-        }
+            => Ok(await _binance.GetTickerAsync(symbol));
     }
 }
