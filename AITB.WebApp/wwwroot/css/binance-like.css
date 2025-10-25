@@ -1,0 +1,455 @@
+/* AITB Trading Interface - Binance-inspired styles */
+:root {
+    --bg-main: #181A20;
+    --bg-panel: #0B0E11;
+    --bg-secondary: #1E2329;
+    --accent-yellow: #F0B90B;
+    --text-primary: #FAFAFA;
+    --text-secondary: #B7BDC6;
+    --text-muted: #848E9C;
+    --green: #0ECB81;
+    --red: #F6465D;
+    --border: #2B3139;
+    --hover: rgba(240, 185, 11, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.trade-layout {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Markets Panel (Left) */
+.markets-panel {
+    width: 300px;
+    background-color: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+}
+
+.markets-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-secondary);
+}
+
+.markets-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.markets-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.market-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid rgba(43, 49, 57, 0.5);
+}
+
+.market-item:hover {
+    background-color: var(--hover);
+}
+
+.market-item.active {
+    background-color: var(--hover);
+    border-left: 3px solid var(--accent-yellow);
+}
+
+.market-symbol {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.market-price {
+    text-align: right;
+}
+
+.market-price-value {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.market-price-change {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.positive {
+    color: var(--green);
+}
+
+.negative {
+    color: var(--red);
+}
+
+/* Chart Panel (Center) */
+.chart-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-main);
+}
+
+.chart-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.symbol-info h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.symbol-info .symbol-change {
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.timeframe-pills {
+    display: flex;
+    gap: 8px;
+}
+
+.timeframe-pill {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.timeframe-pill:hover {
+    border-color: var(--accent-yellow);
+    color: var(--accent-yellow);
+}
+
+.timeframe-pill.active {
+    background-color: var(--accent-yellow);
+    color: #000;
+    border-color: var(--accent-yellow);
+}
+
+.chart-container {
+    flex: 1;
+    padding: 16px;
+}
+
+#candles {
+    width: 100%;
+    height: 640px;
+    background-color: var(--bg-main);
+}
+
+/* Controls Panel (Right) */
+.controls-panel {
+    width: 320px;
+    background-color: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+}
+
+.control-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.control-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ai-insight {
+    background-color: var(--bg-secondary);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+}
+
+.ai-signal {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.ai-confidence {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.bot-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.control-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+    font-weight: 500;
+    flex: 1;
+}
+
+.btn:hover {
+    border-color: var(--accent-yellow);
+    color: var(--accent-yellow);
+}
+
+.btn.btn-start {
+    background-color: var(--green);
+    color: #fff;
+    border-color: var(--green);
+}
+
+.btn.btn-start:hover {
+    background-color: #0bb574;
+}
+
+.btn.btn-stop {
+    background-color: var(--red);
+    color: #fff;
+    border-color: var(--red);
+}
+
+.btn.btn-stop:hover {
+    background-color: #e03c56;
+}
+
+.strategy-select {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.strategy-select:focus {
+    outline: none;
+    border-color: var(--accent-yellow);
+}
+
+/* Account info */
+.account-info {
+    background-color: var(--bg-secondary);
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.account-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.account-row:last-child {
+    margin-bottom: 0;
+}
+
+.account-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.account-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* Header */
+.aitb-header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1920px;
+    margin: 0 auto;
+}
+
+.navbar-brand .brand-link {
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-primary);
+}
+
+.brand-text {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent-yellow);
+    line-height: 1;
+}
+
+.brand-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.navbar-nav {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.nav-link:hover {
+    color: var(--accent-yellow);
+    background-color: var(--hover);
+}
+
+.nav-link.active {
+    color: var(--accent-yellow);
+    background-color: rgba(240, 185, 11, 0.15);
+}
+
+/* Scrollbars */
+.markets-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.markets-list::-webkit-scrollbar-track {
+    background: var(--bg-panel);
+}
+
+.markets-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+
+.markets-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Loading states */
+.loading {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px;
+}
+
+.error {
+    color: var(--red);
+    text-align: center;
+    padding: 20px;
+}
+
+/* Full screen trade mode */
+.trade-page .aitb-header {
+    display: none;
+}
+
+.trade-page main {
+    height: 100vh;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .markets-panel {
+        width: 250px;
+    }
+    
+    .controls-panel {
+        width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .trade-layout {
+        flex-direction: column;
+    }
+    
+    .markets-panel,
+    .controls-panel {
+        width: 100%;
+        height: 200px;
+    }
+    
+    .chart-panel {
+        height: calc(100vh - 400px);
+    }
+    
+    #candles {
+        height: 400px;
+    }
+    
+    .navbar {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .navbar-nav {
+        gap: 16px;
+    }
+
+    .nav-link {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+}

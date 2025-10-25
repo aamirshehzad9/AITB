@@ -1,0 +1,145 @@
+@{
+    ViewData["Title"] = "AITB Trading Interface";
+    Layout = "_Layout";
+    
+    string currentSymbol = ViewBag.Symbol as string ?? "BTCUSDT";
+    string currentInterval = ViewBag.Interval as string ?? "15m";
+}
+
+<div class="trade-layout">
+    <!-- Markets Panel (Left) -->
+    <div class="markets-panel">
+        <div class="markets-header">
+            <h3>Markets</h3>
+        </div>
+        <div class="markets-list">
+            <div class="loading">Loading markets...</div>
+        </div>
+    </div>
+
+    <!-- Chart Panel (Center) -->
+    <div class="chart-panel">
+        <div class="chart-header">
+            <div class="symbol-info">
+                <h2>@currentSymbol.Replace("USDT", "/USDT")</h2>
+                <div class="symbol-change">Loading...</div>
+            </div>
+            <div class="timeframe-pills">
+                <button class="timeframe-pill @(currentInterval == "1m" ? "active" : "")" data-interval="1m">1m</button>
+                <button class="timeframe-pill @(currentInterval == "5m" ? "active" : "")" data-interval="5m">5m</button>
+                <button class="timeframe-pill @(currentInterval == "15m" ? "active" : "")" data-interval="15m">15m</button>
+                <button class="timeframe-pill @(currentInterval == "1h" ? "active" : "")" data-interval="1h">1h</button>
+                <button class="timeframe-pill @(currentInterval == "4h" ? "active" : "")" data-interval="4h">4h</button>
+                <button class="timeframe-pill @(currentInterval == "1d" ? "active" : "")" data-interval="1d">1d</button>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div id="candles"></div>
+        </div>
+    </div>
+
+    <!-- Controls Panel (Right) -->
+    <div class="controls-panel">
+        <!-- AI Insights Section -->
+        <div class="control-section">
+            <h3>AI Market Insight</h3>
+            <div class="ai-insight">
+                <div class="ai-signal positive">BULLISH</div>
+                <div class="ai-confidence">78% confidence - Strong upward momentum detected</div>
+            </div>
+        </div>
+
+        <!-- Bot Controls Section -->
+        <div class="control-section">
+            <h3>Trading Bot</h3>
+            <div class="bot-controls">
+                <select class="strategy-select">
+                    <option value="momentum">Momentum Strategy</option>
+                    <option value="meanreversion">Mean Reversion</option>
+                    <option value="breakout">Breakout Strategy</option>
+                    <option value="custom">Custom Strategy</option>
+                </select>
+                <div class="control-buttons">
+                    <button class="btn btn-start">Start Bot</button>
+                    <button class="btn btn-stop">Stop Bot</button>
+                </div>
+                <button class="btn">Backtest</button>
+            </div>
+        </div>
+
+        <!-- Account Info Section -->
+        <div class="control-section">
+            <h3>Account</h3>
+            <div class="account-info">
+                <div class="account-row">
+                    <span class="account-label">Balance:</span>
+                    <span class="account-value" data-account="balance">$10,000.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">P&L Today:</span>
+                    <span class="account-value positive" data-account="pnl">+$156.24</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Open Positions:</span>
+                    <span class="account-value" data-account="positions">2</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Win Rate:</span>
+                    <span class="account-value">67.3%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Section -->
+        <div class="control-section">
+            <h3>Quick Actions</h3>
+            <div class="bot-controls">
+                <button class="btn">Market Analysis</button>
+                <button class="btn">Risk Assessment</button>
+                <button class="btn">Portfolio Rebalance</button>
+                <button class="btn">Export Data</button>
+            </div>
+        </div>
+
+        <!-- System Status Section -->
+        <div class="control-section">
+            <h3>System Status</h3>
+            <div class="account-info">
+                <div class="account-row">
+                    <span class="account-label">Data Feed:</span>
+                    <span class="account-value positive" data-account="data-feed">Connected</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Trading Engine:</span>
+                    <span class="account-value positive">Active</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">AI Models:</span>
+                    <span class="account-value positive">Ready</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Latency:</span>
+                    <span class="account-value">23ms</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    
+    <!-- SignalR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
+    
+    <!-- Trading Interface -->
+    <script src="~/js/trade-page.js"></script>
+    
+    <!-- Initialize with server data -->
+    <script>
+        // Pass server data to client
+        window.initialSymbol = '@currentSymbol';
+        window.initialInterval = '@currentInterval';
+    </script>
+}
