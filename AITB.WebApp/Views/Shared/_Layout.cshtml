@@ -42,6 +42,7 @@
     
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        :root { --nav-height: 0px; }
         
         .ai-active-pulse {
             animation: ai-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -152,12 +153,22 @@
     </nav>
     
     <!-- Main Trading Interface -->
-    <div class="flex h-screen">
+    <div class="flex" style="height: calc(100vh - var(--nav-height, 0px));">
         @RenderBody()
     </div>
     
     <!-- Global JavaScript -->
     <script>
+        // Set CSS var for nav height to allow pages to size to full remaining viewport
+        function setNavHeightVar() {
+            const nav = document.querySelector('nav');
+            if (!nav) return;
+            const h = nav.getBoundingClientRect().height;
+            document.documentElement.style.setProperty('--nav-height', h + 'px');
+        }
+        window.addEventListener('resize', setNavHeightVar);
+        document.addEventListener('DOMContentLoaded', setNavHeightVar);
+
         // Global state management
         window.AITB = {
             connection: null,
@@ -169,7 +180,7 @@
             // Initialize SignalR connection
             initSignalR: async function() {
                 this.connection = new signalR.HubConnectionBuilder()
-                    .withUrl("/hubs/tradehub")
+                    .withUrl("/marketHub")
                     .build();
                 
                 try {

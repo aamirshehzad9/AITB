@@ -13,23 +13,24 @@
                    class="w-full px-3 py-2 bg-binance-dark border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-binance-yellow">
         </div>
         
-        <div class="flex-1 overflow-y-auto scrollbar-thin" x-data="symbolList()">
+        <div class="flex-1 overflow-y-auto scrollbar-thin" x-data="symbolList()" x-init="init()" x-on:beforeunload.window="destroy()">
             <div class="p-2">
-                <template x-for="symbol in symbols" :key="symbol.pair">
+                <template x-for="symbol in symbols" :key="symbol.symbol">
                     <div class="p-3 hover:bg-gray-700 cursor-pointer rounded mb-1 flex justify-between items-center"
-                         :class="{ 'bg-binance-yellow/10 border-l-2 border-binance-yellow': symbol.pair === currentSymbol }"
-                         @@click="selectSymbol(symbol.pair)">
+                         :class="{ 'bg-binance-yellow/10 border-l-2 border-binance-yellow': symbol.symbol === currentSymbol }"
+                         @@click="selectSymbol(symbol.symbol)">
                         <div>
-                            <div class="font-medium text-white" x-text="symbol.pair"></div>
-                            <div class="text-xs text-gray-400" x-text="symbol.volume"></div>
+                            <div class="font-medium text-white" x-text="symbol.display"></div>
+                            <div class="text-xs text-gray-400" x-text="symbol.volumeText"></div>
                         </div>
                         <div class="text-right">
                             <div class="font-medium" 
-                                 :class="symbol.change >= 0 ? 'text-green-profit' : 'text-red-loss'"
-                                 x-text="'$' + symbol.price.toLocaleString()"></div>
+                                 :class="symbol.priceChangePercent >= 0 ? 'text-green-profit' : 'text-red-loss'"
+                                 x-text="'$' + Number(symbol.lastPrice).toLocaleString()"></div>
                             <div class="text-xs"
-                                 :class="symbol.change >= 0 ? 'text-green-profit' : 'text-red-loss'"
-                                 x-text="(symbol.change >= 0 ? '+' : '') + symbol.change.toFixed(2) + '%'"></div>
+                                 :class="symbol.priceChangePercent >= 0 ? 'text-green-profit' : 'text-red-loss'"
+                                 x-text="(symbol.priceChangePercent >= 0 ? '+' : '') + Number(symbol.priceChangePercent).toFixed(2) + '%'">
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -48,10 +49,11 @@
             </div>
             
             <div class="flex items-center space-x-2">
-                <button class="px-3 py-1 bg-binance-yellow text-black rounded text-sm font-medium">1m</button>
-                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm">5m</button>
-                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm">1h</button>
-                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm">1d</button>
+                <button class="px-3 py-1 bg-binance-yellow text-black rounded text-sm font-medium" data-int="1m">1m</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="5m">5m</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="15m">15m</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="1h">1h</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="1d">1d</button>
             </div>
         </div>
         
@@ -69,13 +71,7 @@
                 <i class="fas fa-brain text-binance-yellow mr-2"></i>
                 AI Insights
             </h3>
-            <div id="ai-signal" class="mb-4">
-                <div class="p-3 rounded bg-green-500/20 text-green-400">
-                    <div class="font-bold">BUY</div>
-                    <div class="text-sm">Confidence: 87.3%</div>
-                    <div class="text-xs text-gray-400">2 minutes ago</div>
-                </div>
-            </div>
+            <div id="ai-signal" class="mb-4"></div>
         </div>
         
         <!-- Bot Controls -->
@@ -153,23 +149,7 @@
         <!-- Open Positions -->
         <div class="flex-1 p-4 overflow-y-auto scrollbar-thin">
             <h3 class="text-lg font-semibold text-white mb-3">Open Positions</h3>
-            <div class="space-y-2" id="positions-list">
-                <div class="bg-binance-dark rounded p-3">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <div class="font-medium text-white">BTC/USDT</div>
-                            <div class="text-xs text-green-profit">LONG</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-green-profit font-medium">+$45.23</div>
-                            <div class="text-xs text-gray-400">+1.2%</div>
-                        </div>
-                    </div>
-                    <div class="text-xs text-gray-400">
-                        Size: 0.001 BTC • Entry: $43,100
-                    </div>
-                </div>
-            </div>
+            <div class="space-y-2" id="positions-list"></div>
         </div>
     </div>
 </div>
@@ -183,31 +163,13 @@
             <!-- Bids -->
             <div class="flex-1">
                 <div class="text-xs text-gray-400 mb-2">Bids</div>
-                <div class="space-y-1 text-xs" id="order-book-bids">
-                    <div class="flex justify-between orderbook-item p-1 rounded">
-                        <span class="text-green-profit">43,245.20</span>
-                        <span class="text-gray-400">0.125</span>
-                    </div>
-                    <div class="flex justify-between orderbook-item p-1 rounded">
-                        <span class="text-green-profit">43,244.80</span>
-                        <span class="text-gray-400">0.089</span>
-                    </div>
-                </div>
+                <div class="space-y-1 text-xs" id="order-book-bids"></div>
             </div>
             
             <!-- Asks -->
             <div class="flex-1">
                 <div class="text-xs text-gray-400 mb-2">Asks</div>
-                <div class="space-y-1 text-xs" id="order-book-asks">
-                    <div class="flex justify-between orderbook-item p-1 rounded">
-                        <span class="text-red-loss">43,246.50</span>
-                        <span class="text-gray-400">0.156</span>
-                    </div>
-                    <div class="flex justify-between orderbook-item p-1 rounded">
-                        <span class="text-red-loss">43,247.20</span>
-                        <span class="text-gray-400">0.203</span>
-                    </div>
-                </div>
+                <div class="space-y-1 text-xs" id="order-book-asks"></div>
             </div>
         </div>
     </div>
@@ -215,169 +177,98 @@
     <!-- Trade History -->
     <div class="w-1/2 p-4">
         <h3 class="text-sm font-semibold text-white mb-3">Recent Trades</h3>
-        <div class="space-y-1 text-xs overflow-y-auto scrollbar-thin h-full" id="trade-history">
-            <div class="flex justify-between">
-                <span class="text-green-profit">43,245.80</span>
-                <span class="text-gray-400">0.045</span>
-                <span class="text-gray-400">14:32:15</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-red-loss">43,244.20</span>
-                <span class="text-gray-400">0.067</span>
-                <span class="text-gray-400">14:32:08</span>
-            </div>
-        </div>
+        <div class="space-y-1 text-xs overflow-y-auto scrollbar-thin h-full" id="trade-history"></div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // Symbol list Alpine.js component
+        // Symbol list Alpine.js component - fetch live top 10 from backend and refresh
         function symbolList() {
             return {
                 currentSymbol: 'BTCUSDT',
-                symbols: [
-                    { pair: 'BTCUSDT', price: 43250.00, change: 2.34, volume: '24.5K BTC' },
-                    { pair: 'ETHUSDT', price: 2345.67, change: -1.23, volume: '156.8K ETH' },
-                    { pair: 'ADAUSDT', price: 0.4567, change: 5.67, volume: '89.2M ADA' },
-                    { pair: 'DOTUSDT', price: 6.789, change: -2.34, volume: '12.3M DOT' },
-                    { pair: 'LINKUSDT', price: 14.56, change: 3.45, volume: '5.6M LINK' }
-                ],
-                
-                selectSymbol(pair) {
-                    this.currentSymbol = pair;
-                    window.AITB.currentSymbol = pair;
-                    
-                    // Update chart and UI
-                    document.getElementById('symbol-name').textContent = pair.replace('USDT', '/USDT');
-                    
-                    // Trigger chart update
-                    this.initChart();
+                symbols: [],
+                interval: '1m',
+                refreshTimer: null,
+                async fetchTop10() {
+                    try {
+                        const res = await fetch('/api/market/top10');
+                        if (!res.ok) throw new Error('Failed to load markets');
+                        const data = await res.json();
+                        this.symbols = data.map((t) => ({
+                            symbol: t.symbol,
+                            display: t.symbol.replace('USDT','/USDT'),
+                            lastPrice: t.lastPrice,
+                            priceChangePercent: t.priceChangePercent,
+                            volumeText: new Intl.NumberFormat().format(t.volume)
+                        }));
+                    } catch (e) {
+                        console.error(e);
+                    }
+                },
+                selectSymbol(sym) {
+                    this.currentSymbol = sym;
+                    window.AITB.currentSymbol = sym;
+                    document.getElementById('symbol-name').textContent = sym.replace('USDT','/USDT');
+                    loadCandles(sym, this.interval);
+                },
+                init() {
+                    this.fetchTop10();
+                    this.refreshTimer = setInterval(() => this.fetchTop10(), 15000);
+                },
+                destroy() {
+                    if (this.refreshTimer) clearInterval(this.refreshTimer);
                 }
             }
         }
         
-        // Bot controls Alpine.js component  
+        // Bot controls Alpine.js component  (unchanged)
         function botControls() {
             return {
                 botActive: false,
                 strategy: 'balanced',
-                
-                async startBot() {
-                    try {
-                        const response = await fetch('/api/bot/start', { method: 'POST' });
-                        if (response.ok) {
-                            this.botActive = true;
-                            window.AITB.botActive = true;
-                        }
-                    } catch (error) {
-                        console.error('Failed to start bot:', error);
-                    }
-                },
-                
-                async pauseBot() {
-                    try {
-                        const response = await fetch('/api/bot/pause', { method: 'POST' });
-                        if (response.ok) {
-                            this.botActive = false;
-                            window.AITB.botActive = false;
-                        }
-                    } catch (error) {
-                        console.error('Failed to pause bot:', error);
-                    }
-                },
-                
-                async stopBot() {
-                    try {
-                        const response = await fetch('/api/bot/stop', { method: 'POST' });
-                        if (response.ok) {
-                            this.botActive = false;
-                            window.AITB.botActive = false;
-                        }
-                    } catch (error) {
-                        console.error('Failed to stop bot:', error);
-                    }
-                },
-                
-                async updateStrategy() {
-                    try {
-                        const response = await fetch('/api/bot/strategy', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ strategy: this.strategy })
-                        });
-                    } catch (error) {
-                        console.error('Failed to update strategy:', error);
-                    }
-                }
+                async startBot() { try { await fetch('/api/bot/start', { method: 'POST' }); this.botActive = true; } catch(e) { console.error(e);} },
+                async pauseBot() { try { await fetch('/api/bot/pause', { method: 'POST' }); this.botActive = false; } catch(e) { console.error(e);} },
+                async stopBot() { try { await fetch('/api/bot/stop', { method: 'POST' }); this.botActive = false; } catch(e) { console.error(e);} },
+                async updateStrategy() { try { await fetch('/api/bot/strategy', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ strategy: this.strategy }) }); } catch(e) { console.error(e);} }
             }
         }
-        
-        // Initialize TradingView chart
-        function initChart() {
-            const chartContainer = document.getElementById('trading-chart');
-            if (!chartContainer) return;
-            
-            // Clear existing chart
-            chartContainer.innerHTML = '';
-            
-            const chart = LightweightCharts.createChart(chartContainer, {
-                width: chartContainer.clientWidth,
-                height: chartContainer.clientHeight,
-                layout: {
-                    backgroundColor: '#181A20',
-                    textColor: '#848E9C',
-                },
-                grid: {
-                    vertLines: { color: '#2B2F36' },
-                    horzLines: { color: '#2B2F36' },
-                },
-                rightPriceScale: {
-                    borderColor: '#2B2F36',
-                },
-                timeScale: {
-                    borderColor: '#2B2F36',
-                    timeVisible: true,
-                    secondsVisible: false,
-                },
-                crosshair: {
-                    mode: LightweightCharts.CrosshairMode.Normal,
-                },
+
+        let chart, candleSeries;
+        function ensureChart() {
+            const container = document.getElementById('trading-chart');
+            if (!container) return;
+            if (chart) return;
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                layout: { backgroundColor: '#181A20', textColor: '#848E9C' },
+                grid: { vertLines: { color: '#2B2F36' }, horzLines: { color: '#2B2F36' } },
+                rightPriceScale: { borderColor: '#2B2F36' },
+                timeScale: { borderColor: '#2B2F36', timeVisible: true, secondsVisible: false }
             });
-            
-            const candlestickSeries = chart.addCandlestickSeries({
-                upColor: '#0ECB81',
-                downColor: '#F6465D',
-                borderDownColor: '#F6465D',
-                borderUpColor: '#0ECB81',
-                wickDownColor: '#F6465D',
-                wickUpColor: '#0ECB81',
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#0ECB81', downColor: '#F6465D', borderDownColor: '#F6465D', borderUpColor: '#0ECB81', wickDownColor: '#F6465D', wickUpColor: '#0ECB81'
             });
-            
-            // Sample data - replace with real market data
-            const sampleData = [
-                { time: '2025-01-01', open: 43000, high: 43500, low: 42800, close: 43250 },
-                { time: '2025-01-02', open: 43250, high: 43800, low: 43100, close: 43600 },
-                { time: '2025-01-03', open: 43600, high: 44000, low: 43400, close: 43750 },
-            ];
-            
-            candlestickSeries.setData(sampleData);
-            
-            // Store chart reference
-            window.AITB.chart = candlestickSeries;
-            
-            // Handle resize
-            window.addEventListener('resize', () => {
-                chart.applyOptions({ 
-                    width: chartContainer.clientWidth,
-                    height: chartContainer.clientHeight 
-                });
-            });
+            window.addEventListener('resize', () => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }));
         }
-        
-        // Initialize chart when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(initChart, 100); // Small delay to ensure container is rendered
+
+        async function loadCandles(symbol, interval) {
+            ensureChart();
+            try {
+                const res = await fetch(`/api/klines/candles?symbol=${symbol}&interval=${interval}&limit=300`);
+                if (!res.ok) throw new Error('Failed to load candles');
+                const data = await res.json();
+                candleSeries.setData(data);
+            } catch (e) {
+                console.error('candles error', e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const defSym = 'BTCUSDT';
+            const defInt = '1m';
+            loadCandles(defSym, defInt);
         });
     </script>
 }

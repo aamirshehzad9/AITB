@@ -1,25 +1,63 @@
-// Market prices loading function
-async function loadMarketPrices() {
-    const resp = await fetch('/api/market/prices');
-    const data = await resp.json();
-    const marketList = document.querySelector('#market-list');
-    marketList.innerHTML = '';
-    data.slice(0, 20).forEach(item => {
-        const symbol = item.symbol;
-        if (symbol.endsWith('USDT')) {
+// Enhanced market prices loading function for Top 10 USDT markets
+async function loadTop10Markets() {
+    try {
+        const resp = await fetch('/api/market/top10');
+        if (!resp.ok) {
+            throw new Error(`API returned ${resp.status}: ${resp.statusText}`);
+        }
+        const data = await resp.json();
+        
+        const marketList = document.querySelector('#market-list');
+        if (!marketList) return;
+        
+        marketList.innerHTML = '';
+        
+        // Add header for Top 10 USDT Markets
+        const header = document.createElement('div');
+        header.classList.add('market-header');
+        header.innerHTML = '<h4>Top 10 USDT Markets</h4>';
+        marketList.appendChild(header);
+        
+        data.forEach((market, index) => {
             const li = document.createElement('li');
             li.classList.add('market-item');
+            li.dataset.symbol = market.symbol;
+            
+            const changePercent = parseFloat(market.priceChangePercent);
+            const changeClass = changePercent >= 0 ? 'positive' : 'negative';
+            const changeSign = changePercent >= 0 ? '+' : '';
+            
             li.innerHTML = `
-                <span>${symbol}</span>
-                <span>${parseFloat(item.price).toFixed(2)}</span>
+                <div class="market-rank">#${index + 1}</div>
+                <div class="market-symbol">${market.symbol.replace('USDT', '/USDT')}</div>
+                <div class="market-price ${changeClass}">$${parseFloat(market.lastPrice).toFixed(4)}</div>
+                <div class="market-change ${changeClass}">${changeSign}${changePercent.toFixed(2)}%</div>
+                <div class="market-volume">${(parseFloat(market.quoteVolume) / 1000000).toFixed(1)}M</div>
             `;
+            
+            // Add click handler to select market
+            li.addEventListener('click', () => {
+                if (window.tradingInterface) {
+                    window.tradingInterface.selectSymbol(market.symbol);
+                }
+            });
+            
             marketList.appendChild(li);
+        });
+        
+        console.log(`Loaded top ${data.length} USDT markets`);
+    } catch (error) {
+        console.error('Failed to load top 10 markets:', error);
+        const marketList = document.querySelector('#market-list');
+        if (marketList) {
+            marketList.innerHTML = '<div class="error">Failed to load markets</div>';
         }
-    });
+    }
 }
 
-setInterval(loadMarketPrices, 5000);
-loadMarketPrices();
+// Load Top 10 markets every 30 seconds
+setInterval(loadTop10Markets, 30000);
+loadTop10Markets();
 
 // AITB Trading Interface - Binance-style UX with Lightweight Charts and SignalR
 class TradingInterface {
@@ -28,7 +66,7 @@ class TradingInterface {
         this.candleSeries = null;
         this.connection = null;
         this.currentSymbol = window.initialSymbol || 'BTCUSDT';
-        this.currentInterval = window.initialInterval || '15m';
+        this.currentInterval = window.initialInterval || '1m';
         this.isConnected = false;
         this.markets = new Map();
         
@@ -131,11 +169,17 @@ class TradingInterface {
                 },
             });
 
-            // Add line series for real-time price
-            this.candleSeries = this.chart.addLineSeries({ 
-                color: '#F0B90B',
-                lineWidth: 2
+            // Add candlestick series for OHLC data
+            this.candleSeries = this.chart.addCandlestickSeries({
+                upColor: '#26a69a',
+                downColor: '#ef5350',
+                borderVisible: false,
+                wickUpColor: '#26a69a',
+                wickDownColor: '#ef5350'
             });
+
+            // Load initial candlestick data
+            await this.loadCandlestickData();
 
             // Handle chart resize
             window.addEventListener('resize', () => {
@@ -149,6 +193,60 @@ class TradingInterface {
         } catch (error) {
             console.error('Failed to initialize chart:', error);
             throw error;
+        }
+    }
+
+    async loadCandlestickData() {
+        try {
+            const response = await fetch(`/api/klines/candles?symbol=${this.currentSymbol}&interval=${this.currentInterval}&limit=500`);
+            if (!response.ok) {
+                throw new Error(`Failed to load candlestick data: ${response.status}`);
+            }
+            
+            const candleData = await response.json();
+            
+            // Format data for Lightweight Charts
+            const formattedData = candleData.map(candle => ({
+                time: candle.time,
+                open: candle.open,
+                high: candle.high,
+                low: candle.low,
+                close: candle.close
+            }));
+            
+            // Set data to candlestick series
+            this.candleSeries.setData(formattedData);
+            
+            console.log(`Loaded ${formattedData.length} candlesticks for ${this.currentSymbol} ${this.currentInterval}`);
+            
+            // Update symbol header
+            this.updateSymbolHeader();
+            
+        } catch (error) {
+            console.error('Failed to load candlestick data:', error);
+            this.showError('Failed to load chart data');
+        }
+    }
+
+    updateSymbolHeader() {
+        const symbolInfo = document.querySelector('.symbol-info h2');
+        const symbolChange = document.querySelector('.symbol-change');
+        
+        if (symbolInfo) {
+            symbolInfo.textContent = this.currentSymbol.replace('USDT', '/USDT');
+        }
+        
+        // Get market data for this symbol
+        const market = this.markets.get(this.currentSymbol);
+        if (market && symbolChange) {
+            const changePercent = parseFloat(market.priceChangePercent);
+            const changeClass = changePercent >= 0 ? 'positive' : 'negative';
+            const changeSign = changePercent >= 0 ? '+' : '';
+            
+            symbolChange.innerHTML = `
+                <span class="current-price ${changeClass}">$${market.price}</span>
+                <span class="price-change ${changeClass}">${changeSign}${market.priceChangePercent}%</span>
+            `;
         }
     }
 
@@ -172,27 +270,30 @@ class TradingInterface {
 
     async loadMarkets() {
         try {
-            // Load some popular markets for demo
-            const popularSymbols = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'DOTUSDT', 'LINKUSDT'];
-            
-            for (const symbol of popularSymbols) {
-                try {
-                    const response = await fetch(`/api/market/ticker/${symbol}`);
-                    if (response.ok) {
-                        const ticker = await response.json();
-                        this.markets.set(symbol, {
-                            symbol,
-                            displaySymbol: symbol.replace('USDT', '/USDT'),
-                            price: parseFloat(ticker.lastPrice || ticker.c || '0').toFixed(2),
-                            priceChangePercent: parseFloat(ticker.priceChangePercent || ticker.P || '0').toFixed(2)
-                        });
-                    }
-                } catch (err) {
-                    console.warn(`Failed to load ticker for ${symbol}:`, err);
-                }
+            // Load top 10 USDT markets
+            const response = await fetch('/api/market/top10');
+            if (!response.ok) {
+                throw new Error(`Failed to load markets: ${response.status}`);
             }
+            
+            const top10Markets = await response.json();
+            
+            // Clear existing markets
+            this.markets.clear();
+            
+            // Store markets data
+            top10Markets.forEach(market => {
+                this.markets.set(market.symbol, {
+                    symbol: market.symbol,
+                    displaySymbol: market.symbol.replace('USDT', '/USDT'),
+                    price: parseFloat(market.lastPrice).toFixed(4),
+                    priceChangePercent: parseFloat(market.priceChangePercent).toFixed(2),
+                    volume: market.volume,
+                    quoteVolume: market.quoteVolume
+                });
+            });
 
-            console.log(`Loaded ${this.markets.size} markets`);
+            console.log(`Loaded ${this.markets.size} top USDT markets`);
             this.updateMarketsList();
         } catch (error) {
             console.error('Failed to load markets:', error);
@@ -254,6 +355,9 @@ class TradingInterface {
             // Update current symbol
             this.currentSymbol = symbol;
 
+            // Load new candlestick data
+            await this.loadCandlestickData();
+
             // Start new stream
             await this.startBinanceStream();
 
@@ -261,6 +365,33 @@ class TradingInterface {
         } catch (error) {
             console.error('Failed to select symbol:', error);
             this.showError('Failed to change symbol');
+        }
+    }
+
+    async selectTimeframe(interval) {
+        if (interval === this.currentInterval) return;
+
+        try {
+            // Update UI
+            document.querySelectorAll('.timeframe-pill').forEach(pill => {
+                pill.classList.remove('active');
+            });
+            
+            const selectedPill = document.querySelector(`[data-interval="${interval}"]`);
+            if (selectedPill) {
+                selectedPill.classList.add('active');
+            }
+
+            // Update current interval
+            this.currentInterval = interval;
+
+            // Reload candlestick data with new interval
+            await this.loadCandlestickData();
+
+            console.log(`Selected timeframe: ${interval}`);
+        } catch (error) {
+            console.error('Failed to select timeframe:', error);
+            this.showError('Failed to change timeframe');
         }
     }
 
@@ -307,18 +438,56 @@ class TradingInterface {
     handleKlineUpdate(data) {
         try {
             if (data && data.symbol === this.currentSymbol) {
-                const price = parseFloat(data.close);
-                const timestamp = data.closeTime / 1000; // Convert to seconds
+                const candlestick = {
+                    time: data.closeTime / 1000, // Convert to seconds
+                    open: parseFloat(data.open),
+                    high: parseFloat(data.high),
+                    low: parseFloat(data.low),
+                    close: parseFloat(data.close)
+                };
 
-                // Update chart
-                this.candleSeries.update({ 
-                    time: timestamp, 
-                    value: price 
-                });
+                // Update chart with new candlestick
+                this.candleSeries.update(candlestick);
+                
+                // Update symbol header with current price
+                this.updatePriceDisplay(data.symbol, parseFloat(data.close));
             }
         } catch (error) {
             console.error('Error handling kline update:', error);
         }
+    }
+
+    updatePriceDisplay(symbol, price) {
+        // Update current price in header
+        const symbolChange = document.querySelector('.symbol-change');
+        if (symbolChange && symbol === this.currentSymbol) {
+            const market = this.markets.get(symbol);
+            if (market) {
+                market.price = price.toFixed(4);
+                
+                const changePercent = parseFloat(market.priceChangePercent);
+                const changeClass = changePercent >= 0 ? 'positive' : 'negative';
+                const changeSign = changePercent >= 0 ? '+' : '';
+                
+                symbolChange.innerHTML = `
+                    <span class="current-price ${changeClass}">$${market.price}</span>
+                    <span class="price-change ${changeClass}">${changeSign}${market.priceChangePercent}%</span>
+                `;
+                
+                // Add price change animation
+                const priceElement = symbolChange.querySelector('.current-price');
+                if (priceElement) {
+                    priceElement.style.transition = 'color 0.3s';
+                    priceElement.style.color = '#F0B90B';
+                    setTimeout(() => {
+                        priceElement.style.color = '';
+                    }, 300);
+                }
+            }
+        }
+        
+        // Update market list item
+        this.updateMarketItem(symbol, { price: price.toFixed(4) });
     }
 
     updateMarketItem(symbol, market) {

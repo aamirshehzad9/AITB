@@ -148,6 +148,87 @@ namespace AITB.WebApp.Services
             }
         }
 
+        public async Task<List<object>> GetTop10USDTMarketsAsync()
+        {
+            try
+            {
+                var url = $"{_baseUrl}/api/v3/ticker/24hr";
+                
+                var response = await _httpClient.GetAsync(url);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Failed to get 24hr ticker data. Status: {StatusCode}", response.StatusCode);
+                    return new List<object>();
+                }
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var tickers = JsonSerializer.Deserialize<JsonElement[]>(content);
+                
+                var usdtPairs = tickers
+                    .Where(t => t.GetProperty("symbol").GetString()?.EndsWith("USDT") == true)
+                    .Where(t => t.GetProperty("count").GetInt64() > 1000) // Filter active pairs
+                    .OrderByDescending(t => decimal.Parse(t.GetProperty("quoteVolume").GetString() ?? "0"))
+                    .Take(10)
+                    .Select(t => new
+                    {
+                        symbol = t.GetProperty("symbol").GetString(),
+                        lastPrice = decimal.Parse(t.GetProperty("lastPrice").GetString() ?? "0"),
+                        priceChange = decimal.Parse(t.GetProperty("priceChange").GetString() ?? "0"),
+                        priceChangePercent = decimal.Parse(t.GetProperty("priceChangePercent").GetString() ?? "0"),
+                        volume = decimal.Parse(t.GetProperty("volume").GetString() ?? "0"),
+                        quoteVolume = decimal.Parse(t.GetProperty("quoteVolume").GetString() ?? "0"),
+                        count = t.GetProperty("count").GetInt64()
+                    })
+                    .Cast<object>()
+                    .ToList();
+                
+                _logger.LogInformation("Retrieved {Count} top USDT markets", usdtPairs.Count);
+                return usdtPairs;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception getting top 10 USDT markets");
+                return new List<object>();
+            }
+        }
+
+        public async Task<List<object>> GetFormattedKlinesAsync(string symbol, string interval = "1m", int limit = 500)
+        {
+            try
+            {
+                var url = $"{_baseUrl}/api/v3/klines?symbol={symbol.ToUpper()}&interval={interval}&limit={limit}";
+                
+                var response = await _httpClient.GetAsync(url);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Failed to get klines for {Symbol}. Status: {StatusCode}", symbol, response.StatusCode);
+                    return new List<object>();
+                }
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var rawKlines = JsonSerializer.Deserialize<decimal[][]>(content);
+                
+                var formattedKlines = rawKlines?.Select(k => new
+                {
+                    time = (long)(k[0] / 1000), // Convert to seconds for Lightweight Charts
+                    open = k[1],
+                    high = k[2],
+                    low = k[3],
+                    close = k[4],
+                    volume = k[5]
+                }).Cast<object>().ToList() ?? new List<object>();
+                
+                return formattedKlines;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception getting formatted klines for {Symbol}", symbol);
+                return new List<object>();
+            }
+        }
+
         private string CreateSignature(string queryString)
         {
             var key = Encoding.UTF8.GetBytes(_secretKey);
