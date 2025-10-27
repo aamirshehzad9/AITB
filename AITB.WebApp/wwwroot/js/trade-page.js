@@ -69,6 +69,8 @@ class TradingInterface {
         this.currentInterval = window.initialInterval || '1m';
         this.isConnected = false;
         this.markets = new Map();
+        this.priceUpdateTimer = null;
+        this.botStatusTimer = null;
         
         this.init();
     }
@@ -81,6 +83,9 @@ class TradingInterface {
             await this.startBinanceStream();
             this.setupEventListeners();
             this.updateConnectionStatus();
+            
+            // Start live price updates using our chart API
+            this.startLivePriceUpdates();
             
             console.log('⚡ Connected to market stream');
             console.log('Trading interface initialized successfully');
@@ -198,7 +203,8 @@ class TradingInterface {
 
     async loadCandlestickData() {
         try {
-            const response = await fetch(`/api/klines/candles?symbol=${this.currentSymbol}&interval=${this.currentInterval}&limit=500`);
+            // Use our new chart API endpoint with auto-backfill
+            const response = await fetch(`/api/chart/candles?symbol=${this.currentSymbol}&interval=${this.currentInterval}&limit=500`);
             if (!response.ok) {
                 throw new Error(`Failed to load candlestick data: ${response.status}`);
             }
@@ -361,6 +367,9 @@ class TradingInterface {
             // Start new stream
             await this.startBinanceStream();
 
+            // Restart live price updates for new symbol
+            this.startLivePriceUpdates();
+
             console.log(`Selected symbol: ${symbol}`);
         } catch (error) {
             console.error('Failed to select symbol:', error);
@@ -457,6 +466,72 @@ class TradingInterface {
         }
     }
 
+    // Enhanced price updates using our new chart API
+    async updateLivePrice() {
+        try {
+            const response = await fetch(`/api/chart/price?symbol=${this.currentSymbol}`);
+            if (response.ok) {
+                const priceData = await response.json();
+                
+                // Update price display
+                this.updatePriceDisplay(this.currentSymbol, parseFloat(priceData.price));
+                
+                // Store updated market data
+                const market = this.markets.get(this.currentSymbol);
+                if (market) {
+                    market.price = parseFloat(priceData.price).toFixed(4);
+                    market.lastUpdate = priceData.timestamp;
+                    this.updateMarketItem(this.currentSymbol, market);
+                }
+                
+                console.log(`Price update: ${this.currentSymbol} = $${priceData.price} (${priceData.source})`);
+            }
+        } catch (error) {
+            console.error('Error updating live price:', error);
+        }
+    }
+
+    startLivePriceUpdates() {
+        // Stop existing timer if any
+        if (this.priceUpdateTimer) {
+            clearInterval(this.priceUpdateTimer);
+        }
+
+        // Update price every 2 seconds
+        this.priceUpdateTimer = setInterval(() => {
+            this.updateLivePrice();
+        }, 2000);
+
+        // Initial update
+        this.updateLivePrice();
+        
+        console.log('Started live price updates (2s interval)');
+    }
+
+    stopLivePriceUpdates() {
+        if (this.priceUpdateTimer) {
+            clearInterval(this.priceUpdateTimer);
+            this.priceUpdateTimer = null;
+            console.log('Stopped live price updates');
+        }
+    }
+
+    stopBotStatusPolling() {
+        if (this.botStatusTimer) {
+            clearInterval(this.botStatusTimer);
+            this.botStatusTimer = null;
+            console.log('Stopped bot status polling');
+        }
+    }
+
+    cleanup() {
+        this.stopLivePriceUpdates();
+        this.stopBotStatusPolling();
+        if (this.connection) {
+            this.connection.stop();
+        }
+    }
+
     updatePriceDisplay(symbol, price) {
         // Update current price in header
         const symbolChange = document.querySelector('.symbol-change');
@@ -532,23 +607,313 @@ class TradingInterface {
             });
         });
 
-        // Bot control buttons
+        // Bot control buttons - Real H3 Implementation
+        this.setupBotControls();
+    }
+
+    setupBotControls() {
         const startBtn = document.querySelector('.btn-start');
+        const pauseBtn = document.querySelector('.btn-pause');
         const stopBtn = document.querySelector('.btn-stop');
         
         if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                console.log('Start bot clicked');
-                this.showInfo('Bot started (demo mode)');
+            startBtn.addEventListener('click', async () => {
+                await this.controlBot('start', startBtn);
+            });
+        }
+        
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', async () => {
+                await this.controlBot('pause', pauseBtn);
             });
         }
         
         if (stopBtn) {
-            stopBtn.addEventListener('click', () => {
-                console.log('Stop bot clicked');
-                this.showInfo('Bot stopped (demo mode)');
+            stopBtn.addEventListener('click', async () => {
+                await this.controlBot('stop', stopBtn);
             });
         }
+
+        // Start bot status polling
+        this.startBotStatusPolling();
+    }
+
+    async controlBot(action, buttonElement) {
+        try {
+            // Disable button and show loading state
+            const originalText = buttonElement.textContent;
+            buttonElement.disabled = true;
+            buttonElement.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)}ing...`;
+
+            const response = await fetch('/api/bot/control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: action,
+                    symbol: this.currentSymbol,
+                    timeframe: this.currentInterval
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                console.log(`Bot ${action} successful:`, result);
+                this.showSuccess(`Bot ${action}ed successfully`);
+                
+                // Update button states
+                this.updateBotButtonStates(action);
+                
+                // Force status update
+                setTimeout(() => this.updateBotStatus(), 500);
+            } else {
+                console.error(`Bot ${action} failed:`, result);
+                this.showError(result.error || `Failed to ${action} bot`);
+            }
+        } catch (error) {
+            console.error(`Error ${action}ing bot:`, error);
+            this.showError(`Network error: Failed to ${action} bot`);
+        } finally {
+            // Re-enable button
+            buttonElement.disabled = false;
+            buttonElement.textContent = originalText;
+        }
+    }
+
+    updateBotButtonStates(currentAction) {
+        const startBtn = document.querySelector('.btn-start');
+        const pauseBtn = document.querySelector('.btn-pause');
+        const stopBtn = document.querySelector('.btn-stop');
+
+        // Reset all buttons
+        [startBtn, pauseBtn, stopBtn].forEach(btn => {
+            if (btn) {
+                btn.classList.remove('active', 'disabled');
+                btn.disabled = false;
+            }
+        });
+
+        // Set active state based on current action
+        switch (currentAction) {
+            case 'start':
+                if (startBtn) startBtn.classList.add('active');
+                if (stopBtn) stopBtn.disabled = false;
+                if (pauseBtn) pauseBtn.disabled = false;
+                break;
+            case 'pause':
+                if (pauseBtn) pauseBtn.classList.add('active');
+                if (startBtn) startBtn.disabled = false;
+                if (stopBtn) stopBtn.disabled = false;
+                break;
+            case 'stop':
+                if (stopBtn) stopBtn.classList.add('active');
+                if (startBtn) startBtn.disabled = false;
+                if (pauseBtn) pauseBtn.disabled = true;
+                break;
+        }
+    }
+
+    startBotStatusPolling() {
+        // Poll bot status every 3 seconds
+        if (this.botStatusTimer) {
+            clearInterval(this.botStatusTimer);
+        }
+
+        this.botStatusTimer = setInterval(() => {
+            this.updateBotStatus();
+        }, 3000);
+
+        // Initial status update
+        this.updateBotStatus();
+        
+        console.log('Started bot status polling (3s interval)');
+    }
+
+    async updateBotStatus() {
+        try {
+            const response = await fetch('/api/bot/status');
+            if (response.ok) {
+                const status = await response.json();
+                this.displayBotStatus(status);
+            } else {
+                console.warn('Failed to fetch bot status:', response.status);
+            }
+        } catch (error) {
+            console.error('Error fetching bot status:', error);
+        }
+    }
+
+    displayBotStatus(status) {
+        try {
+            // Update Bot Status card
+            const botStateElement = document.querySelector('[data-bot="state"]');
+            const botSymbolElement = document.querySelector('[data-bot="symbol"]');
+            const botTimeframeElement = document.querySelector('[data-bot="timeframe"]');
+            const botPositionsElement = document.querySelector('[data-bot="positions"]');
+            const botPnlElement = document.querySelector('[data-bot="pnl"]');
+            const botHeartbeatElement = document.querySelector('[data-bot="heartbeat"]');
+
+            if (botStateElement) {
+                botStateElement.textContent = status.state || 'Unknown';
+                botStateElement.className = `bot-value ${this.getBotStatusClass(status.state)}`;
+            }
+
+            if (botSymbolElement) {
+                botSymbolElement.textContent = status.symbol || this.currentSymbol;
+            }
+
+            if (botTimeframeElement) {
+                botTimeframeElement.textContent = status.timeframe || this.currentInterval;
+            }
+
+            if (botPositionsElement && status.positions) {
+                const positionValue = status.positions.total_value || 0;
+                botPositionsElement.textContent = `$${parseFloat(positionValue).toFixed(2)}`;
+            }
+
+            if (botPnlElement && status.positions) {
+                const pnl = status.positions.unrealized_pnl || 0;
+                const pnlText = `${pnl >= 0 ? '+' : ''}$${parseFloat(pnl).toFixed(2)}`;
+                botPnlElement.textContent = pnlText;
+                botPnlElement.className = `bot-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+            }
+
+            if (botHeartbeatElement) {
+                const heartbeatTime = status.last_heartbeat ? new Date(status.last_heartbeat) : new Date();
+                const timeAgo = this.getTimeAgo(heartbeatTime);
+                botHeartbeatElement.textContent = timeAgo;
+                
+                // Color based on heartbeat freshness
+                const heartbeatClass = this.getHeartbeatClass(heartbeatTime);
+                botHeartbeatElement.className = `bot-value ${heartbeatClass}`;
+            }
+
+            // Update recent signals
+            if (status.recent_signals) {
+                this.displayRecentSignals(status.recent_signals);
+            }
+
+            // Update button states based on current bot state
+            this.updateBotButtonStates(status.state);
+
+        } catch (error) {
+            console.error('Error displaying bot status:', error);
+        }
+    }
+
+    getBotStatusClass(state) {
+        switch (state) {
+            case 'running':
+            case 'active':
+                return 'positive';
+            case 'paused':
+                return 'warning';
+            case 'stopped':
+            case 'inactive':
+                return 'negative';
+            default:
+                return 'neutral';
+        }
+    }
+
+    getHeartbeatClass(heartbeatTime) {
+        const now = new Date();
+        const diffSeconds = (now - heartbeatTime) / 1000;
+        
+        if (diffSeconds < 30) return 'positive';
+        if (diffSeconds < 60) return 'warning';
+        return 'negative';
+    }
+
+    getTimeAgo(date) {
+        const now = new Date();
+        const diffSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffSeconds < 60) return `${diffSeconds}s ago`;
+        if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+        return `${Math.floor(diffSeconds / 3600)}h ago`;
+    }
+
+    displayRecentSignals(signals) {
+        const signalsContainer = document.querySelector('.recent-signals');
+        if (!signalsContainer || !signals) return;
+
+        signalsContainer.innerHTML = '';
+
+        // Show last 3 signals
+        const recentSignals = signals.slice(-3);
+        
+        if (recentSignals.length === 0) {
+            signalsContainer.innerHTML = '<div class="no-signals">No recent signals</div>';
+            return;
+        }
+
+        recentSignals.forEach(signal => {
+            const signalElement = document.createElement('div');
+            signalElement.className = `signal-item signal-${signal.type.toLowerCase()}`;
+            
+            const signalTime = new Date(signal.timestamp);
+            const timeAgo = this.getTimeAgo(signalTime);
+            
+            signalElement.innerHTML = `
+                <div class="signal-type">${signal.type}</div>
+                <div class="signal-symbol">${signal.symbol}</div>
+                <div class="signal-confidence">${(signal.confidence * 100).toFixed(1)}%</div>
+                <div class="signal-time">${timeAgo}</div>
+            `;
+            
+            signalsContainer.appendChild(signalElement);
+        });
+    }
+
+    showSuccess(message) {
+        console.log(`✅ ${message}`);
+        // Could implement toast notifications here
+        this.showToast(message, 'success');
+    }
+
+    showError(message) {
+        console.error(`❌ ${message}`);
+        // Could implement toast notifications here
+        this.showToast(message, 'error');
+    }
+
+    showToast(message, type = 'info') {
+        // Simple toast implementation
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transition: opacity 0.3s;
+        `;
+        
+        if (type === 'success') {
+            toast.style.backgroundColor = '#10B981';
+        } else if (type === 'error') {
+            toast.style.backgroundColor = '#EF4444';
+        } else {
+            toast.style.backgroundColor = '#3B82F6';
+        }
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 3000);
     }
 
     showError(message) {

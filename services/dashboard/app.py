@@ -17,13 +17,13 @@ import requests
 import json
 
 # Configuration
-INFLUXDB_URL = "http://influxdb:8086"
+INFLUXDB_URL = "http://localhost:8086"
 INFLUXDB_TOKEN = "aitb_token"
 INFLUXDB_ORG = "aitb"
 INFLUXDB_BUCKET = "aitb"
 
-BOT_SERVICE_URL = "http://bot:8000"
-INFERENCE_SERVICE_URL = "http://inference:8001"
+BOT_SERVICE_URL = "http://localhost:8000"
+INFERENCE_SERVICE_URL = "http://localhost:8001"
 
 # Page configuration
 st.set_page_config(

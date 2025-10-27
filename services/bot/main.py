@@ -36,7 +36,7 @@ logging.basicConfig(
     level=getattr(logging, os.getenv('LOG_LEVEL', 'INFO')),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/app/logs/bot.log'),
+        logging.FileHandler('D:/logs/aitb/bot/bot.log'),
         logging.StreamHandler()
     ]
 )
@@ -57,8 +57,8 @@ class Config:
     models_path: str = os.getenv('MODELS_PATH', '/app/data/models')
     
     # Services
-    inference_url: str = os.getenv('INFERENCE_URL', 'http://inference:8001')
-    influx_url: str = os.getenv('INFLUX_URL', 'http://influxdb:8086')
+    inference_url: str = os.getenv('INFERENCE_URL', 'http://localhost:8001')
+    influx_url: str = os.getenv('INFLUX_URL', 'http://localhost:8086')
     influx_token: str = os.getenv('INFLUX_TOKEN', '')
     influx_org: str = os.getenv('INFLUX_ORG', 'aitb-org')
     influx_bucket: str = os.getenv('INFLUX_BUCKET', 'aitb')
@@ -456,6 +456,73 @@ class TradingEngine:
         self.portfolio = {}
         self.active_trades = {}
         self.last_predictions = {}
+        self.recent_signals = []
+        self.bot_state = "running"
+        self.current_symbol = "BTC/USDT"
+        self.current_timeframe = "1m"
+        self.heartbeat_url = "http://localhost:8502/bot/heartbeat"
+    
+    async def send_heartbeat(self):
+        """Send heartbeat to dashboard API"""
+        try:
+            # Calculate portfolio value and PnL
+            total_value = 0.0
+            total_pnl = 0.0
+            
+            # Get recent trades for PnL calculation
+            with sqlite3.connect(self.db_manager.sqlite_path) as conn:
+                recent_trades = pd.read_sql_query(
+                    "SELECT * FROM trades ORDER BY created_at DESC LIMIT 10", 
+                    conn
+                )
+                if not recent_trades.empty:
+                    total_pnl = recent_trades['pnl'].sum()
+                    total_value = recent_trades['total'].sum()
+            
+            # Create heartbeat payload
+            heartbeat_data = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "status": self.bot_state,
+                "symbol": self.current_symbol,
+                "timeframe": self.current_timeframe,
+                "positions": {
+                    "total_value": round(total_value, 2),
+                    "unrealized_pnl": round(total_pnl, 2),
+                    "position_count": len(self.active_trades)
+                },
+                "recent_signals": self.recent_signals[-3:] if self.recent_signals else []
+            }
+            
+            # Send heartbeat
+            response = requests.post(
+                self.heartbeat_url, 
+                json=heartbeat_data, 
+                timeout=5.0
+            )
+            
+            if response.status_code == 200:
+                logger.debug("Heartbeat sent successfully")
+            else:
+                logger.warning(f"Heartbeat failed with status {response.status_code}")
+                
+        except Exception as e:
+            logger.error(f"Failed to send heartbeat: {e}")
+    
+    async def add_signal(self, signal_type: str, symbol: str, confidence: float, details: str = ""):
+        """Add a trading signal to recent signals list"""
+        signal = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "type": signal_type,
+            "symbol": symbol,
+            "confidence": round(confidence, 3),
+            "details": details
+        }
+        
+        self.recent_signals.append(signal)
+        
+        # Keep only last 10 signals
+        if len(self.recent_signals) > 10:
+            self.recent_signals = self.recent_signals[-10:]
     
     async def analyze_market(self, pair: str) -> Dict[str, Any]:
         """Analyze market for a trading pair"""
@@ -556,16 +623,26 @@ class TradingEngine:
         """Main trading loop"""
         logger.info("Starting trading loop...")
         last_heartbeat = 0
+        last_dashboard_heartbeat = 0
         
         while is_running:
             try:
-                # Heartbeat logging every 60 seconds or less
                 current_time = time.time()
+                
+                # Console heartbeat logging every 60 seconds
                 if current_time - last_heartbeat >= 60:
                     logger.info(f"🟢 HEARTBEAT: AITB Bot alive - {datetime.now(timezone.utc).isoformat()} - Active pairs: {len(config.trading_pairs)} - Memory: {psutil.virtual_memory().percent:.1f}%")
                     last_heartbeat = current_time
                 
+                # Dashboard heartbeat every 20 seconds
+                if current_time - last_dashboard_heartbeat >= 20:
+                    await self.send_heartbeat()
+                    last_dashboard_heartbeat = current_time
+                
                 for pair in config.trading_pairs:
+                    # Update current symbol for heartbeat
+                    self.current_symbol = pair
+                    
                     # Analyze market
                     analysis = await self.analyze_market(pair)
                     if not analysis or not analysis['prediction']:
@@ -585,11 +662,19 @@ class TradingEngine:
                         if pred_value > 0.1 and confidence > 0.7:
                             # Buy signal
                             amount = config.max_position_size * 1000  # Example amount
+                            await self.add_signal("BUY", pair, confidence, f"Prediction: {pred_value:.3f}")
                             await self.execute_trade(pair, 'buy', amount, analysis)
                         elif pred_value < -0.1 and confidence > 0.7:
                             # Sell signal (if we have position)
                             amount = config.max_position_size * 1000  # Example amount
+                            await self.add_signal("SELL", pair, confidence, f"Prediction: {pred_value:.3f}")
                             await self.execute_trade(pair, 'sell', amount, analysis)
+                        else:
+                            # Neutral/Hold signal
+                            await self.add_signal("HOLD", pair, confidence, f"Prediction: {pred_value:.3f}")
+                    else:
+                        # Low confidence signal
+                        await self.add_signal("WEAK", pair, confidence, "Low confidence prediction")
                 
                 # Write performance metrics
                 self.metrics_manager.write_performance_metrics({

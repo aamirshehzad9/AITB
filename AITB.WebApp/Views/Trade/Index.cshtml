@@ -6,7 +6,48 @@
     string currentInterval = ViewBag.Interval as string ?? "1m";
 }
 
-<div class="trade-layout">
+<!-- Authentication Check and Login Modal -->
+<div id="authCheck" style="display: none;">
+    <div class="auth-overlay">
+        <div class="auth-modal">
+            <div class="auth-header">
+                <h2>🔒 Authentication Required</h2>
+                <p>Please log in to access the AITB Trading Interface</p>
+            </div>
+            <div class="auth-actions">
+                <button class="btn btn-primary" onclick="window.location.href='/auth/login'">
+                    Go to Login
+                </button>
+                <button class="btn btn-secondary" onclick="checkAuthStatus()">
+                    Retry
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Role-based Access Warning -->
+<div id="roleWarning" style="display: none;">
+    <div class="auth-overlay">
+        <div class="auth-modal warning">
+            <div class="auth-header">
+                <h2>⚠️ Limited Access</h2>
+                <p>You are logged in as a <strong id="userRole"></strong>. Some features may be restricted.</p>
+                <p>Bot controls require <strong>admin</strong> role.</p>
+            </div>
+            <div class="auth-actions">
+                <button class="btn btn-primary" onclick="hideRoleWarning()">
+                    Continue
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='/admin'">
+                    Admin Panel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="trade-layout" id="tradeInterface" style="display: none;">
     <!-- Markets Panel (Left) -->
     <div class="markets-panel">
         <div class="markets-header">
@@ -52,9 +93,9 @@
         </div>
 
         <!-- Bot Controls Section -->
-        <div class="control-section">
-            <h3>Trading Bot</h3>
-            <div class="bot-controls">
+        <div class="control-section" id="botControlsSection">
+            <h3>Trading Bot <span id="botAccessBadge" class="access-badge" style="display: none;"></span></h3>
+            <div class="bot-controls" id="botControls">
                 <select class="strategy-select">
                     <option value="momentum">Momentum Strategy</option>
                     <option value="meanreversion">Mean Reversion</option>
@@ -63,9 +104,16 @@
                 </select>
                 <div class="control-buttons">
                     <button class="btn btn-start">Start Bot</button>
+                    <button class="btn btn-pause">Pause Bot</button>
                     <button class="btn btn-stop">Stop Bot</button>
                 </div>
                 <button class="btn">Backtest</button>
+            </div>
+            <div class="access-denied" id="botControlsDenied" style="display: none;">
+                <p>🔒 Bot controls require <strong>admin</strong> privileges</p>
+                <button class="btn btn-secondary" onclick="window.location.href='/auth/login'">
+                    Login as Admin
+                </button>
             </div>
         </div>
 
@@ -144,4 +192,244 @@
         window.initialSymbol = '@currentSymbol';
         window.initialInterval = '@currentInterval';
     </script>
+
+    <!-- Authentication and Role Management Script -->
+    <script>
+    // Authentication status management
+    let authToken = null;
+    let userRole = null;
+    let username = null;
+
+    async function checkAuthStatus() {
+        try {
+            authToken = localStorage.getItem('authToken');
+            userRole = localStorage.getItem('userRole');
+            username = localStorage.getItem('username');
+
+            if (!authToken) {
+                showAuthRequired();
+                return false;
+            }
+
+            // Validate token with server
+            const response = await fetch('/api/auth/validate', {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                userRole = result.role;
+                username = result.user;
+                
+                // Update stored values
+                localStorage.setItem('userRole', userRole);
+                localStorage.setItem('username', username);
+                
+                showTradeInterface();
+                setupRoleBasedAccess();
+                return true;
+            } else {
+                // Invalid token
+                clearAuthData();
+                showAuthRequired();
+                return false;
+            }
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            showAuthRequired();
+            return false;
+        }
+    }
+
+    function clearAuthData() {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('username');
+        authToken = null;
+        userRole = null;
+        username = null;
+    }
+
+    function showAuthRequired() {
+        document.getElementById('authCheck').style.display = 'block';
+        document.getElementById('tradeInterface').style.display = 'none';
+        document.getElementById('roleWarning').style.display = 'none';
+    }
+
+    function showTradeInterface() {
+        document.getElementById('authCheck').style.display = 'none';
+        document.getElementById('tradeInterface').style.display = 'block';
+    }
+
+    function setupRoleBasedAccess() {
+        const botControls = document.getElementById('botControls');
+        const botControlsDenied = document.getElementById('botControlsDenied');
+        const botAccessBadge = document.getElementById('botAccessBadge');
+
+        if (userRole === 'admin') {
+            // Admin has full access
+            botControls.style.display = 'block';
+            botControlsDenied.style.display = 'none';
+            botAccessBadge.style.display = 'inline';
+            botAccessBadge.textContent = '✓ Admin Access';
+            botAccessBadge.className = 'access-badge admin';
+            
+            console.log('✅ Admin access granted - Bot controls enabled');
+            
+            // Add admin panel link
+            const adminLink = document.createElement('a');
+            adminLink.href = '/admin';
+            adminLink.className = 'admin-link';
+            adminLink.innerHTML = '🔧 Admin Panel';
+            adminLink.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #F0B90B;
+                color: #000;
+                padding: 8px 16px;
+                border-radius: 6px;
+                text-decoration: none;
+                font-weight: 600;
+                z-index: 1000;
+            `;
+            document.body.appendChild(adminLink);
+        } else {
+            // Viewer has limited access
+            botControls.style.display = 'none';
+            botControlsDenied.style.display = 'block';
+            botAccessBadge.style.display = 'inline';
+            botAccessBadge.textContent = '🔒 Viewer Mode';
+            botAccessBadge.className = 'access-badge viewer';
+            
+            console.log('⚠️ Viewer access - Bot controls disabled');
+            
+            // Show role warning
+            setTimeout(() => {
+                document.getElementById('userRole').textContent = userRole;
+                document.getElementById('roleWarning').style.display = 'block';
+            }, 1000);
+        }
+    }
+
+    function hideRoleWarning() {
+        document.getElementById('roleWarning').style.display = 'none';
+    }
+
+    async function logout() {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            clearAuthData();
+            window.location.href = '/auth/login';
+        }
+    }
+
+    // Setup Authorization header for all AITB API calls
+    function setupApiAuth() {
+        if (authToken) {
+            // Override fetch to automatically include auth headers for API calls
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                if (url.startsWith('/api/') && !url.startsWith('/api/auth/')) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                return originalFetch(url, options);
+            };
+        }
+    }
+
+    // Initialize authentication on page load
+    document.addEventListener('DOMContentLoaded', async function() {
+        const isAuthenticated = await checkAuthStatus();
+        
+        if (isAuthenticated) {
+            setupApiAuth();
+        }
+    });
+    </script>
+
+    <!-- Auth Styles -->
+    <style>
+    .auth-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .auth-modal {
+        background: #16213e;
+        border-radius: 12px;
+        padding: 30px;
+        border: 1px solid #2d3748;
+        max-width: 400px;
+        text-align: center;
+    }
+
+    .auth-modal.warning {
+        border-color: #ed8936;
+    }
+
+    .auth-header h2 {
+        color: #F0B90B;
+        margin-bottom: 10px;
+    }
+
+    .auth-header p {
+        color: #a0aec0;
+        margin-bottom: 20px;
+    }
+
+    .auth-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .access-badge {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    .access-badge.admin {
+        background: #68d391;
+        color: #22543d;
+    }
+
+    .access-badge.viewer {
+        background: #fbb6ce;
+        color: #742a2a;
+    }
+
+    .access-denied {
+        text-align: center;
+        padding: 20px;
+        background: #2d3748;
+        border-radius: 8px;
+        color: #a0aec0;
+    }
+
+    .access-denied p {
+        margin-bottom: 15px;
+    }
+    </style>
 }

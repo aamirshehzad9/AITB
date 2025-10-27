@@ -1,5 +1,8 @@
 using AITB.WebApp.Hubs;
 using AITB.WebApp.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Serilog;
 using System.Diagnostics;
 
@@ -80,6 +83,42 @@ builder.Services.AddSingleton<BinanceService>();
 builder.Services.AddSingleton<BinanceStreamService>();
 builder.Services.AddSingleton<BinanceHttpService>();
 
+// Register authentication services
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddSingleton<IUserService, InMemoryUserService>();
+
+// Configure JWT Authentication
+var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? "AITB-Demo-Secret-Key-For-Development-Only-2024";
+var key = Encoding.ASCII.GetBytes(jwtKey);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false; // For development
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "AITB.WebApp",
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration["Jwt:Audience"] ?? "AITB.WebApp",
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
+    options.AddPolicy("ViewerOrAdmin", policy => policy.RequireRole("viewer", "admin"));
+});
+
 // Add HttpClient for external API calls
 builder.Services.AddHttpClient();
 
@@ -107,6 +146,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors();
 app.UseRouting();
+
+// Add Authentication and Authorization middleware
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Configure routes

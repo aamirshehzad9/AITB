@@ -1,271 +1,137 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
+using System.Text;
 
-namespace AITB.WebApp.Controllers.Api;
-
-[ApiController]
-[Route("api/[controller]")]
-public class BotController : ControllerBase
+namespace AITB.WebApp.Controllers.Api
 {
-    private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<BotController> _logger;
-
-    public BotController(HttpClient httpClient, IConfiguration configuration, ILogger<BotController> logger)
+    [ApiController]
+    [Route("api/bot")]
+    [Authorize(Policy = "AdminOnly")] // Protect all bot endpoints for admin only
+    public class BotController : ControllerBase
     {
-        _httpClient = httpClient;
-        _configuration = configuration;
-        _logger = logger;
-    }
+        private readonly ILogger<BotController> _logger;
+        private readonly HttpClient _httpClient;
 
-    [HttpPost("start")]
-    public async Task<IActionResult> StartBot()
-    {
-        try
+        public BotController(ILogger<BotController> logger, HttpClient httpClient)
         {
-            // Connect to bot service - assuming bot runs as Docker container or service
-            var botUrl = _configuration["BOT_URL"] ?? "http://localhost:8002";
-            
-            var response = await _httpClient.PostAsync($"{botUrl}/start", null);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation("Trading bot started successfully");
-                return Ok(new { status = "started", timestamp = DateTimeOffset.UtcNow });
-            }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Failed to start bot: {Error}", error);
-                return StatusCode((int)response.StatusCode, new { error = "Failed to start bot" });
-            }
+            _logger = logger;
+            _httpClient = httpClient;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error starting trading bot");
-            
-            // Mock response for development
-            _logger.LogInformation("Bot start simulated (service unavailable)");
-            return Ok(new { status = "started", timestamp = DateTimeOffset.UtcNow, simulated = true });
-        }
-    }
 
-    [HttpPost("pause")]
-    public async Task<IActionResult> PauseBot()
-    {
-        try
+        [HttpPost("control")]
+        public async Task<IActionResult> ControlBot([FromBody] BotControlRequest request)
         {
-            var botUrl = _configuration["BOT_URL"] ?? "http://localhost:8002";
-            
-            var response = await _httpClient.PostAsync($"{botUrl}/pause", null);
-            
-            if (response.IsSuccessStatusCode)
+            try
             {
-                _logger.LogInformation("Trading bot paused successfully");
-                return Ok(new { status = "paused", timestamp = DateTimeOffset.UtcNow });
-            }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Failed to pause bot: {Error}", error);
-                return StatusCode((int)response.StatusCode, new { error = "Failed to pause bot" });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error pausing trading bot");
-            
-            // Mock response for development
-            _logger.LogInformation("Bot pause simulated (service unavailable)");
-            return Ok(new { status = "paused", timestamp = DateTimeOffset.UtcNow, simulated = true });
-        }
-    }
+                _logger.LogInformation($"Bot control request: {request.Action}");
 
-    [HttpPost("stop")]
-    public async Task<IActionResult> StopBot()
-    {
-        try
-        {
-            var botUrl = _configuration["BOT_URL"] ?? "http://localhost:8002";
-            
-            var response = await _httpClient.PostAsync($"{botUrl}/stop", null);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation("Trading bot stopped successfully");
-                return Ok(new { status = "stopped", timestamp = DateTimeOffset.UtcNow });
-            }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Failed to stop bot: {Error}", error);
-                return StatusCode((int)response.StatusCode, new { error = "Failed to stop bot" });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error stopping trading bot");
-            
-            // Mock response for development
-            _logger.LogInformation("Bot stop simulated (service unavailable)");
-            return Ok(new { status = "stopped", timestamp = DateTimeOffset.UtcNow, simulated = true });
-        }
-    }
+                var json = JsonSerializer.Serialize(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-    [HttpPost("strategy")]
-    public async Task<IActionResult> UpdateStrategy([FromBody] StrategyRequest request)
-    {
-        try
-        {
-            var botUrl = _configuration["BOT_URL"] ?? "http://localhost:8002";
-            
-            var json = JsonSerializer.Serialize(request);
-            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-            
-            var response = await _httpClient.PostAsync($"{botUrl}/strategy", content);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation("Bot strategy updated to {Strategy}", request.Strategy);
-                return Ok(new { status = "updated", strategy = request.Strategy, timestamp = DateTimeOffset.UtcNow });
+                var response = await _httpClient.PostAsync("http://localhost:8502/bot/control", content);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    return Content(responseContent, "application/json");
+                }
+                
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Bot control failed: {response.StatusCode} - {errorContent}");
+                return StatusCode((int)response.StatusCode, new { error = "Bot control request failed", details = errorContent });
             }
-            else
+            catch (Exception ex)
             {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Failed to update strategy: {Error}", error);
-                return StatusCode((int)response.StatusCode, new { error = "Failed to update strategy" });
+                _logger.LogError(ex, "Error controlling bot");
+                return StatusCode(500, new { error = ex.Message });
             }
         }
-        catch (Exception ex)
+
+        [HttpGet("status")]
+        public async Task<IActionResult> GetBotStatus()
         {
-            _logger.LogError(ex, "Error updating bot strategy");
-            
-            // Mock response for development
-            _logger.LogInformation("Strategy update simulated: {Strategy}", request.Strategy);
-            return Ok(new { status = "updated", strategy = request.Strategy, timestamp = DateTimeOffset.UtcNow, simulated = true });
+            try
+            {
+                var response = await _httpClient.GetAsync("http://localhost:8502/bot/status");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    return Content(content, "application/json");
+                }
+                
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Failed to get bot status: {response.StatusCode} - {errorContent}");
+                return StatusCode((int)response.StatusCode, new { error = "Failed to get bot status", details = errorContent });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting bot status");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        // Legacy endpoints for compatibility (redirect to new API)
+        [HttpPost("start")]
+        public async Task<IActionResult> StartBot()
+        {
+            var request = new BotControlRequest { Action = "start" };
+            return await ControlBot(request);
+        }
+
+        [HttpPost("pause")]
+        public async Task<IActionResult> PauseBot()
+        {
+            var request = new BotControlRequest { Action = "pause" };
+            return await ControlBot(request);
+        }
+
+        [HttpPost("stop")]
+        public async Task<IActionResult> StopBot()
+        {
+            var request = new BotControlRequest { Action = "stop" };
+            return await ControlBot(request);
+        }
+
+        [HttpGet("heartbeat")]
+        public async Task<IActionResult> GetLastHeartbeat()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("http://localhost:8502/bot/status");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var statusData = JsonSerializer.Deserialize<JsonElement>(content);
+                    
+                    // Extract heartbeat info from status
+                    var heartbeatInfo = new
+                    {
+                        timestamp = statusData.TryGetProperty("last_heartbeat", out var hb) ? hb.GetString() : null,
+                        status = statusData.TryGetProperty("state", out var state) ? state.GetString() : "unknown",
+                        uptime = statusData.TryGetProperty("uptime", out var up) ? up.GetDouble() : 0.0
+                    };
+                    
+                    return Ok(heartbeatInfo);
+                }
+                
+                return StatusCode(500, new { error = "Failed to get heartbeat data" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting heartbeat data");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
     }
 
-    [HttpGet("status")]
-    public async Task<IActionResult> GetBotStatus()
+    public class BotControlRequest
     {
-        try
-        {
-            var botUrl = _configuration["BOT_URL"] ?? "http://localhost:8002";
-            
-            var response = await _httpClient.GetAsync($"{botUrl}/status");
-            
-            if (response.IsSuccessStatusCode)
-            {
-                var statusJson = await response.Content.ReadAsStringAsync();
-                var status = JsonSerializer.Deserialize<BotStatus>(statusJson);
-                return Ok(status);
-            }
-            else
-            {
-                // Return mock status if bot service unavailable
-                return Ok(GenerateMockBotStatus());
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching bot status");
-            
-            // Return mock status for development
-            return Ok(GenerateMockBotStatus());
-        }
+        public string Action { get; set; } = string.Empty;
+        public string? Symbol { get; set; }
+        public string? Timeframe { get; set; }
+        public Dictionary<string, object>? Parameters { get; set; }
     }
-
-    [HttpGet("positions")]
-    public async Task<IActionResult> GetOpenPositions()
-    {
-        try
-        {
-            var botUrl = _configuration["BOT_URL"] ?? "http://localhost:8002";
-            
-            var response = await _httpClient.GetAsync($"{botUrl}/positions");
-            
-            if (response.IsSuccessStatusCode)
-            {
-                var positionsJson = await response.Content.ReadAsStringAsync();
-                var positions = JsonSerializer.Deserialize<List<Position>>(positionsJson);
-                return Ok(positions);
-            }
-            else
-            {
-                // Return mock positions if bot service unavailable
-                return Ok(GenerateMockPositions());
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching bot positions");
-            
-            // Return mock positions for development
-            return Ok(GenerateMockPositions());
-        }
-    }
-
-    private BotStatus GenerateMockBotStatus()
-    {
-        return new BotStatus
-        {
-            Active = false,
-            Strategy = "balanced",
-            Balance = 10000.00m,
-            UnrealizedPnL = 234.56m,
-            DailyGain = 2.35m,
-            TotalProfit = 1234.56m,
-            OpenPositions = 1,
-            LastUpdated = DateTimeOffset.UtcNow
-        };
-    }
-
-    private List<Position> GenerateMockPositions()
-    {
-        return new List<Position>
-        {
-            new Position
-            {
-                Symbol = "BTCUSDT",
-                Side = "LONG",
-                Size = 0.001m,
-                EntryPrice = 43100.00m,
-                CurrentPrice = 43245.00m,
-                UnrealizedPnL = 45.23m,
-                PnLPercentage = 1.2m,
-                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-30)
-            }
-        };
-    }
-}
-
-// Data Models
-public class StrategyRequest
-{
-    public string Strategy { get; set; } = "";
-}
-
-public class BotStatus
-{
-    public bool Active { get; set; }
-    public string Strategy { get; set; } = "";
-    public decimal Balance { get; set; }
-    public decimal UnrealizedPnL { get; set; }
-    public decimal DailyGain { get; set; }
-    public decimal TotalProfit { get; set; }
-    public int OpenPositions { get; set; }
-    public DateTimeOffset LastUpdated { get; set; }
-}
-
-public class Position
-{
-    public string Symbol { get; set; } = "";
-    public string Side { get; set; } = "";
-    public decimal Size { get; set; }
-    public decimal EntryPrice { get; set; }
-    public decimal CurrentPrice { get; set; }
-    public decimal UnrealizedPnL { get; set; }
-    public decimal PnLPercentage { get; set; }
-    public DateTimeOffset Timestamp { get; set; }
 }
