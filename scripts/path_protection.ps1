@@ -1,4 +1,5 @@
 # AITB Path Protection Script
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
 # Prevents duplicate directory creation and validates workspace integrity
 
 $ErrorActionPreference = "Stop"

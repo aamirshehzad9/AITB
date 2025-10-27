@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TradingView Quotes Contract",
+  "description": "Real-time bid/ask quotes for symbols, aligned with TradingView broker specification",
+  "version": "1.0.0",
+  
+  "endpoint": "/quotes",
+  "method": "GET",
+  
+  "request": {
+    "type": "object",
+    "properties": {
+      "symbols": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array of symbol names to get quotes for",
+        "example": ["BTCUSDT", "ETHUSDT", "ADAUSDT"]
+      }
+    },
+    "required": ["symbols"]
+  },
+  
+  "response": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "enum": ["ok", "error"],
+        "description": "Status of the request"
+      },
+      "d": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/Quote"
+        },
+        "description": "Array of quote data"
+      },
+      "errmsg": {
+        "type": "string",
+        "description": "Error message (only present if s=error)"
+      }
+    },
+    "required": ["s"]
+  },
+  
+  "definitions": {
+    "Quote": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "string",
+          "description": "Symbol name"
+        },
+        "s": {
+          "type": "string",
+          "enum": ["ok", "no_data", "error"],
+          "description": "Status for this specific symbol"
+        },
+        "v": {
+          "$ref": "#/definitions/QuoteData",
+          "description": "Quote values"
+        }
+      },
+      "required": ["n", "s"]
+    },
+    
+    "QuoteData": {
+      "type": "object",
+      "properties": {
+        "bid": {
+          "type": "number",
+          "description": "Best bid price",
+          "minimum": 0
+        },
+        "ask": {
+          "type": "number", 
+          "description": "Best ask price",
+          "minimum": 0
+        },
+        "bid_size": {
+          "type": "number",
+          "description": "Size/volume at best bid",
+          "minimum": 0
+        },
+        "ask_size": {
+          "type": "number",
+          "description": "Size/volume at best ask", 
+          "minimum": 0
+        },
+        "spread": {
+          "type": "number",
+          "description": "Spread between bid and ask",
+          "minimum": 0
+        },
+        "spread_percent": {
+          "type": "number",
+          "description": "Spread as percentage of mid price",
+          "minimum": 0
+        },
+        "mid": {
+          "type": "number",
+          "description": "Mid price (bid + ask) / 2",
+          "minimum": 0
+        },
+        "change": {
+          "type": "number",
+          "description": "Price change from previous close"
+        },
+        "change_percent": {
+          "type": "number",
+          "description": "Percentage change from previous close"
+        },
+        "last_price": {
+          "type": "number",
+          "description": "Last traded price",
+          "minimum": 0
+        },
+        "volume": {
+          "type": "number", 
+          "description": "24h trading volume",
+          "minimum": 0
+        },
+        "high": {
+          "type": "number",
+          "description": "24h high price",
+          "minimum": 0
+        },
+        "low": {
+          "type": "number",
+          "description": "24h low price", 
+          "minimum": 0
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "Unix timestamp in milliseconds"
+        }
+      },
+      "required": ["bid", "ask", "timestamp"]
+    }
+  },
+  
+  "examples": {
+    "request": {
+      "symbols": ["BTCUSDT", "ETHUSDT"]
+    },
+    "response": {
+      "s": "ok",
+      "d": [
+        {
+          "n": "BTCUSDT",
+          "s": "ok", 
+          "v": {
+            "bid": 43250.5,
+            "ask": 43251.0,
+            "bid_size": 0.5,
+            "ask_size": 0.3,
+            "spread": 0.5,
+            "spread_percent": 0.001,
+            "mid": 43250.75,
+            "change": 150.5,
+            "change_percent": 0.35,
+            "last_price": 43250.8,
+            "volume": 1250000,
+            "high": 43500.0,
+            "low": 42800.0,
+            "timestamp": 1698412800000
+          }
+        }
+      ]
+    }
+  }
+}

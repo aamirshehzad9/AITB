@@ -1,0 +1,394 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TradingView Orders Contract",
+  "description": "Order management with currentBid/currentAsk and preview endpoints",
+  "version": "1.0.0",
+  
+  "endpoints": {
+    "place_order": "/orders",
+    "preview_order": "/orders/preview", 
+    "modify_order": "/orders/{orderId}",
+    "cancel_order": "/orders/{orderId}",
+    "get_orders": "/orders",
+    "get_order": "/orders/{orderId}"
+  },
+  
+  "place_order": {
+    "endpoint": "/orders",
+    "method": "POST",
+    "request": {
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "Trading symbol",
+          "example": "BTCUSDT"
+        },
+        "side": {
+          "type": "string",
+          "enum": ["buy", "sell"],
+          "description": "Order side"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["market", "limit", "stop", "stop_limit", "trailing_stop"],
+          "description": "Order type"
+        },
+        "quantity": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order quantity"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order price (required for limit orders)"
+        },
+        "stop_price": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Stop price (for stop orders)"
+        },
+        "time_in_force": {
+          "type": "string",
+          "enum": ["GTC", "IOC", "FOK", "DAY"],
+          "description": "Time in force",
+          "default": "GTC"
+        },
+        "client_order_id": {
+          "type": "string",
+          "description": "Client-assigned order ID"
+        },
+        "currentBid": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Current best bid price at time of order"
+        },
+        "currentAsk": {
+          "type": "number", 
+          "minimum": 0,
+          "description": "Current best ask price at time of order"
+        }
+      },
+      "required": ["symbol", "side", "type", "quantity", "currentBid", "currentAsk"]
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": "string",
+          "enum": ["ok", "error"],
+          "description": "Status of the request"
+        },
+        "order": {
+          "$ref": "#/definitions/Order"
+        },
+        "errmsg": {
+          "type": "string",
+          "description": "Error message (only present if s=error)"
+        }
+      },
+      "required": ["s"]
+    }
+  },
+  
+  "preview_order": {
+    "endpoint": "/orders/preview",
+    "method": "POST", 
+    "request": {
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "Trading symbol"
+        },
+        "side": {
+          "type": "string", 
+          "enum": ["buy", "sell"],
+          "description": "Order side"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["market", "limit", "stop", "stop_limit"],
+          "description": "Order type"
+        },
+        "quantity": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order quantity"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order price (for limit orders)"
+        },
+        "currentBid": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Current best bid price"
+        },
+        "currentAsk": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Current best ask price"
+        }
+      },
+      "required": ["symbol", "side", "type", "quantity", "currentBid", "currentAsk"]
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": "string",
+          "enum": ["ok", "error"],
+          "description": "Status of the request"
+        },
+        "preview": {
+          "$ref": "#/definitions/OrderPreview"
+        },
+        "errmsg": {
+          "type": "string",
+          "description": "Error message (only present if s=error)"
+        }
+      },
+      "required": ["s"]
+    }
+  },
+  
+  "definitions": {
+    "Order": {
+      "type": "object",
+      "properties": {
+        "order_id": {
+          "type": "string",
+          "description": "Unique order identifier"
+        },
+        "client_order_id": {
+          "type": "string",
+          "description": "Client-assigned order ID"
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Trading symbol"
+        },
+        "side": {
+          "type": "string",
+          "enum": ["buy", "sell"],
+          "description": "Order side"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["market", "limit", "stop", "stop_limit", "trailing_stop"],
+          "description": "Order type"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["new", "partially_filled", "filled", "canceled", "rejected", "expired"],
+          "description": "Order status"
+        },
+        "quantity": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Original order quantity"
+        },
+        "filled_quantity": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Filled quantity"
+        },
+        "remaining_quantity": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Remaining quantity"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order price"
+        },
+        "stop_price": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Stop price (for stop orders)"
+        },
+        "average_fill_price": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Average fill price"
+        },
+        "time_in_force": {
+          "type": "string",
+          "enum": ["GTC", "IOC", "FOK", "DAY"],
+          "description": "Time in force"
+        },
+        "created_time": {
+          "type": "integer",
+          "description": "Order creation timestamp (Unix)"
+        },
+        "updated_time": {
+          "type": "integer", 
+          "description": "Last update timestamp (Unix)"
+        },
+        "currentBid": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Current best bid at order placement"
+        },
+        "currentAsk": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Current best ask at order placement"
+        },
+        "commission": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Commission charged"
+        },
+        "commission_asset": {
+          "type": "string",
+          "description": "Asset used for commission"
+        }
+      },
+      "required": ["order_id", "symbol", "side", "type", "status", "quantity", "price", "created_time", "currentBid", "currentAsk"]
+    },
+    
+    "OrderPreview": {
+      "type": "object", 
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "Trading symbol"
+        },
+        "side": {
+          "type": "string",
+          "enum": ["buy", "sell"],
+          "description": "Order side"
+        },
+        "type": {
+          "type": "string",
+          "description": "Order type"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Order quantity"
+        },
+        "price": {
+          "type": "number",
+          "description": "Order price"
+        },
+        "estimated_fill_price": {
+          "type": "number",
+          "description": "Estimated execution price"
+        },
+        "estimated_commission": {
+          "type": "number",
+          "description": "Estimated commission"
+        },
+        "commission_asset": {
+          "type": "string",
+          "description": "Commission asset"
+        },
+        "total_cost": {
+          "type": "number",
+          "description": "Total estimated cost (including commission)"
+        },
+        "currentBid": {
+          "type": "number",
+          "description": "Current best bid"
+        },
+        "currentAsk": {
+          "type": "number",
+          "description": "Current best ask"
+        },
+        "spread": {
+          "type": "number",
+          "description": "Current spread"
+        },
+        "market_impact": {
+          "type": "number",
+          "description": "Estimated market impact"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of warnings about the order"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of errors preventing order execution"
+        }
+      },
+      "required": ["symbol", "side", "type", "quantity", "currentBid", "currentAsk"]
+    }
+  },
+  
+  "examples": {
+    "place_order_request": {
+      "symbol": "BTCUSDT",
+      "side": "buy",
+      "type": "limit",
+      "quantity": 0.01,
+      "price": 43200.0,
+      "time_in_force": "GTC",
+      "client_order_id": "my_order_123",
+      "currentBid": 43199.5,
+      "currentAsk": 43200.5
+    },
+    "place_order_response": {
+      "s": "ok",
+      "order": {
+        "order_id": "order_456789",
+        "client_order_id": "my_order_123", 
+        "symbol": "BTCUSDT",
+        "side": "buy",
+        "type": "limit",
+        "status": "new",
+        "quantity": 0.01,
+        "filled_quantity": 0.0,
+        "remaining_quantity": 0.01,
+        "price": 43200.0,
+        "average_fill_price": 0.0,
+        "time_in_force": "GTC",
+        "created_time": 1698412800,
+        "updated_time": 1698412800,
+        "currentBid": 43199.5,
+        "currentAsk": 43200.5,
+        "commission": 0.0,
+        "commission_asset": "USDT"
+      }
+    },
+    "preview_order_request": {
+      "symbol": "BTCUSDT",
+      "side": "buy",
+      "type": "market", 
+      "quantity": 0.01,
+      "currentBid": 43199.5,
+      "currentAsk": 43200.5
+    },
+    "preview_order_response": {
+      "s": "ok",
+      "preview": {
+        "symbol": "BTCUSDT",
+        "side": "buy",
+        "type": "market",
+        "quantity": 0.01,
+        "price": 0.0,
+        "estimated_fill_price": 43200.5,
+        "estimated_commission": 0.432,
+        "commission_asset": "USDT",
+        "total_cost": 432.432,
+        "currentBid": 43199.5,
+        "currentAsk": 43200.5,
+        "spread": 1.0,
+        "market_impact": 0.0,
+        "warnings": [],
+        "errors": []
+      }
+    }
+  }
+}

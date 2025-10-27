@@ -1,5 +1,6 @@
 #!/usr/bin/env powershell
 # Test script to simulate GOmini-AI handshake initialization
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "AITB Handshake Test Script" -ForegroundColor Cyan

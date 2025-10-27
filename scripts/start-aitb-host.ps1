@@ -1,5 +1,6 @@
 #!/usr/bin/env powershell
 # AITB Host Agent Startup Script
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
 # Handles handshake initialization from GOmini-AI (192.168.1.4)
 
 Write-Host "========================================" -ForegroundColor Cyan

@@ -1,4 +1,5 @@
 # AITB Host Agent - Production Configuration
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
 # Sets the server to listen on 192.168.1.2 for production deployment
 
 Write-Host "AITB Host Agent - Production Configuration" -ForegroundColor Cyan

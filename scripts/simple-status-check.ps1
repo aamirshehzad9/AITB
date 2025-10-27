@@ -1,5 +1,6 @@
 #!/usr/bin/env powershell
 # AITB Host Agent - Simple Status Check
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "AITB Host Agent - System Status Check" -ForegroundColor Cyan

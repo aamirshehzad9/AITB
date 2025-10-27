@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TradingView Depth Contract",
+  "description": "Level 2 order book depth data, aligned with TradingView broker specification",
+  "version": "1.0.0",
+  
+  "endpoint": "/depth",
+  "method": "GET",
+  
+  "request": {
+    "type": "object",
+    "properties": {
+      "symbol": {
+        "type": "string",
+        "description": "Symbol name to get depth for",
+        "example": "BTCUSDT"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 500,
+        "default": 100,
+        "description": "Number of price levels to return (per side)"
+      }
+    },
+    "required": ["symbol"]
+  },
+  
+  "response": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "enum": ["ok", "error"],
+        "description": "Status of the request"
+      },
+      "symbol": {
+        "type": "string",
+        "description": "Symbol name"
+      },
+      "asks": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/DepthLevel"
+        },
+        "description": "Ask side of the order book (sorted ascending by price)"
+      },
+      "bids": {
+        "type": "array", 
+        "items": {
+          "$ref": "#/definitions/DepthLevel"
+        },
+        "description": "Bid side of the order book (sorted descending by price)"
+      },
+      "timestamp": {
+        "type": "integer",
+        "description": "Unix timestamp in milliseconds when data was captured"
+      },
+      "last_update_id": {
+        "type": "integer",
+        "description": "Last update ID for delta streaming"
+      },
+      "total_bid_volume": {
+        "type": "number",
+        "description": "Total volume on bid side",
+        "minimum": 0
+      },
+      "total_ask_volume": {
+        "type": "number", 
+        "description": "Total volume on ask side",
+        "minimum": 0
+      },
+      "spread": {
+        "type": "number",
+        "description": "Current spread (best_ask - best_bid)",
+        "minimum": 0
+      },
+      "spread_percent": {
+        "type": "number",
+        "description": "Spread as percentage of mid price",
+        "minimum": 0
+      },
+      "errmsg": {
+        "type": "string",
+        "description": "Error message (only present if s=error)"
+      }
+    },
+    "required": ["s", "symbol", "asks", "bids", "timestamp"]
+  },
+  
+  "definitions": {
+    "DepthLevel": {
+      "type": "array",
+      "items": [
+        {
+          "type": "number",
+          "description": "Price level",
+          "minimum": 0
+        },
+        {
+          "type": "number", 
+          "description": "Volume/size at this price level",
+          "minimum": 0
+        },
+        {
+          "type": "integer",
+          "description": "Number of orders at this level (optional)",
+          "minimum": 0
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "Price level as [price, volume] or [price, volume, count]"
+    }
+  },
+  
+  "requirements": {
+    "data_quality": {
+      "max_staleness_ms": 1000,
+      "description": "Depth data must not be older than 1 second"
+    },
+    "sorting": {
+      "asks": "ascending by price (lowest ask first)",
+      "bids": "descending by price (highest bid first)"
+    },
+    "precision": {
+      "price_precision": "match symbol specification",
+      "volume_precision": "match symbol specification"
+    }
+  },
+  
+  "examples": {
+    "request": {
+      "symbol": "BTCUSDT",
+      "limit": 5
+    },
+    "response": {
+      "s": "ok",
+      "symbol": "BTCUSDT",
+      "asks": [
+        [43251.0, 0.5, 3],
+        [43251.5, 0.8, 2], 
+        [43252.0, 1.2, 5],
+        [43252.5, 0.3, 1],
+        [43253.0, 2.1, 7]
+      ],
+      "bids": [
+        [43250.5, 0.7, 4],
+        [43250.0, 1.1, 6],
+        [43249.5, 0.9, 3],
+        [43249.0, 1.5, 8], 
+        [43248.5, 0.6, 2]
+      ],
+      "timestamp": 1698412800000,
+      "last_update_id": 123456789,
+      "total_bid_volume": 4.8,
+      "total_ask_volume": 4.9,
+      "spread": 0.5,
+      "spread_percent": 0.001
+    }
+  }
+}

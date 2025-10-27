@@ -1,0 +1,269 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - AITB Trading Platform</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'binance-yellow': '#F0B90B',
+                        'binance-dark': '#181A20',
+                        'binance-gray': '#2B2F36',
+                        'binance-light-gray': '#848E9C',
+                        'green-profit': '#0ECB81',
+                        'red-loss': '#F6465D'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js -->
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    
+    <!-- TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    
+    <!-- SignalR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Binance-like styles -->
+    <link rel="stylesheet" href="~/css/binance-like.css">
+    
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        :root { --nav-height: 0px; }
+        
+        .ai-active-pulse {
+            animation: ai-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @@keyframes ai-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        
+        .bot-glow {
+            box-shadow: 0 0 20px rgba(240, 185, 11, 0.5);
+            animation: bot-glow 3s ease-in-out infinite alternate;
+        }
+        
+        @@keyframes bot-glow {
+            from { box-shadow: 0 0 20px rgba(240, 185, 11, 0.3); }
+            to { box-shadow: 0 0 30px rgba(240, 185, 11, 0.7); }
+        }
+        
+        .streaming-ticker {
+            background: linear-gradient(90deg, transparent, rgba(240, 185, 11, 0.1), transparent);
+            animation: ticker-flow 2s linear infinite;
+        }
+        
+        @@keyframes ticker-flow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .chart-container {
+            height: calc(100vh - 120px);
+        }
+        
+        .orderbook-item:hover {
+            background-color: rgba(240, 185, 11, 0.1);
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #2B2F36;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #848E9C;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-binance-dark text-white overflow-hidden">
+    
+    <!-- Top Navigation Bar -->
+    <nav class="bg-binance-gray border-b border-gray-700 px-4 py-3">
+        <div class="flex items-center justify-between">
+            <!-- Left: Logo & Navigation -->
+            <div class="flex items-center space-x-6">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-robot text-binance-yellow text-xl"></i>
+                    <span class="text-xl font-bold text-binance-yellow">AITB</span>
+                    <span class="text-sm text-gray-400">Trading Platform</span>
+                </div>
+                
+                <div class="hidden md:flex items-center space-x-4">
+                    <a href="#" class="text-binance-yellow border-b-2 border-binance-yellow pb-1">Trade</a>
+                    <a href="#" class="text-gray-400 hover:text-white">Portfolio</a>
+                    <a href="#" class="text-gray-400 hover:text-white">Analytics</a>
+                </div>
+            </div>
+            
+            <!-- Center: AI Status -->
+            <div class="flex items-center space-x-4" x-data="{ aiActive: true, streaming: true, botTrading: false }">
+                <div class="flex items-center space-x-2" x-show="aiActive">
+                    <div class="w-2 h-2 bg-green-profit rounded-full ai-active-pulse"></div>
+                    <span class="text-green-profit text-sm font-medium">AI Active</span>
+                </div>
+                
+                <div class="flex items-center space-x-2" x-show="streaming">
+                    <div class="w-2 h-2 bg-binance-yellow rounded-full streaming-ticker"></div>
+                    <span class="text-binance-yellow text-sm font-medium">Streaming Live</span>
+                </div>
+                
+                <div class="flex items-center space-x-2" x-show="botTrading" x-bind:class="{ 'bot-glow': botTrading }">
+                    <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span class="text-blue-400 text-sm font-medium">Bot Trading</span>
+                </div>
+            </div>
+            
+            <!-- Right: Balance & Connection -->
+            <div class="flex items-center space-x-4">
+                <div class="text-right">
+                    <div class="text-sm text-gray-400">Paper Balance</div>
+                    <div class="text-lg font-bold text-white" id="balance">$10,000.00</div>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-green-profit rounded-full"></div>
+                    <span class="text-green-profit text-sm">Connected</span>
+                </div>
+                
+                <button class="p-2 hover:bg-gray-700 rounded">
+                    <i class="fas fa-cog text-gray-400"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Trading Interface -->
+    <div class="flex" style="height: calc(100vh - var(--nav-height, 0px));">
+        @RenderBody()
+    </div>
+    
+    <!-- Global JavaScript -->
+    <script>
+        // Set CSS var for nav height to allow pages to size to full remaining viewport
+        function setNavHeightVar() {
+            const nav = document.querySelector('nav');
+            if (!nav) return;
+            const h = nav.getBoundingClientRect().height;
+            document.documentElement.style.setProperty('--nav-height', h + 'px');
+        }
+        window.addEventListener('resize', setNavHeightVar);
+        document.addEventListener('DOMContentLoaded', setNavHeightVar);
+
+        // Global state management
+        window.AITB = {
+            connection: null,
+            chart: null,
+            currentSymbol: 'BTCUSDT',
+            balance: 10000,
+            botActive: false,
+            
+            // Initialize SignalR connection
+            initSignalR: async function() {
+                this.connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/marketHub")
+                    .build();
+                
+                try {
+                    await this.connection.start();
+                    console.log("SignalR Connected");
+                    
+                    // Setup event handlers
+                    this.connection.on("ReceivePriceUpdate", this.handlePriceUpdate.bind(this));
+                    this.connection.on("ReceiveAISignal", this.handleAISignal.bind(this));
+                    this.connection.on("ReceiveTrade", this.handleTrade.bind(this));
+                    this.connection.on("ReceiveBotStatus", this.handleBotStatus.bind(this));
+                    
+                } catch (err) {
+                    console.error("SignalR connection failed:", err);
+                    setTimeout(() => this.initSignalR(), 5000); // Retry in 5 seconds
+                }
+            },
+            
+            handlePriceUpdate: function(data) {
+                // Update chart and price displays
+                if (this.chart && data.symbol === this.currentSymbol) {
+                    this.chart.update({
+                        time: Math.floor(Date.now() / 1000),
+                        open: data.open,
+                        high: data.high,
+                        low: data.low,
+                        close: data.close,
+                        volume: data.volume
+                    });
+                }
+                
+                // Update price displays
+                const priceElement = document.getElementById('current-price');
+                if (priceElement && data.symbol === this.currentSymbol) {
+                    priceElement.textContent = `$${data.close.toLocaleString()}`;
+                }
+            },
+            
+            handleAISignal: function(signal) {
+                // Display AI trading signal
+                const signalElement = document.getElementById('ai-signal');
+                if (signalElement) {
+                    signalElement.innerHTML = `
+                        <div class="p-3 rounded ${signal.action === 'BUY' ? 'bg-green-500/20 text-green-400' : 
+                                                   signal.action === 'SELL' ? 'bg-red-500/20 text-red-400' : 
+                                                   'bg-yellow-500/20 text-yellow-400'}">
+                            <div class="font-bold">${signal.action}</div>
+                            <div class="text-sm">Confidence: ${(signal.confidence * 100).toFixed(1)}%</div>
+                            <div class="text-xs text-gray-400">${new Date().toLocaleTimeString()}</div>
+                        </div>
+                    `;
+                }
+            },
+            
+            handleTrade: function(trade) {
+                // Add trade to history
+                console.log("New trade:", trade);
+                this.updateBalance(trade);
+            },
+            
+            handleBotStatus: function(status) {
+                this.botActive = status.active;
+                // Update UI indicators
+            },
+            
+            updateBalance: function(trade) {
+                // Update paper trading balance
+                const change = trade.action === 'BUY' ? -trade.amount * trade.price : trade.amount * trade.price;
+                this.balance += change;
+                
+                const balanceElement = document.getElementById('balance');
+                if (balanceElement) {
+                    balanceElement.textContent = `$${this.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                }
+            }
+        };
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            window.AITB.initSignalR();
+        });
+    </script>
+    
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

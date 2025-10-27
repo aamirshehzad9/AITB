@@ -1,4 +1,6 @@
 # Administrative fix for AITB Host Agent
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
+
 Write-Host "AITB Host Agent - Administrative Fix" -ForegroundColor Cyan
 Write-Host "====================================" -ForegroundColor Cyan
 

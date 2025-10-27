@@ -13,9 +13,9 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-aitb}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-aitb_super_secret_token}
     volumes:
-      - influxdb_data:/var/lib/influxdb2
-      - influxdb_config:/etc/influxdb2
-      - ./logs:/var/log/influxdb2
+      - D:\docker\influxdb\data:/var/lib/influxdb2
+      - D:\docker\influxdb\config:/etc/influxdb2
+      - D:\docker\logs:/var/log/influxdb2
     ports:
       - "8086:8086"
     networks:
@@ -56,9 +56,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PYTHONPATH: /app
     volumes:
-      - aitb_data:/app/data
-      - aitb_models:/app/data/models
-      - aitb_logs:/app/logs
+      - D:\docker\bot\data:/app/data
+      - D:\docker\models:/app/data/models
+      - D:\docker\logs:/app/logs
       - ./config:/app/config:ro
     networks:
       - aitb-network
@@ -91,8 +91,8 @@ services:
       OMP_NUM_THREADS: 4
       ONNX_NUM_THREADS: 4
     volumes:
-      - aitb_models:/app/data/models
-      - aitb_logs:/app/logs
+      - D:\docker\models:/app/data/models
+      - D:\docker\logs:/app/logs
     ports:
       - "8001:8001"
     networks:
@@ -123,7 +123,7 @@ services:
       PYTHONPATH: /app
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
-      - aitb_logs:/app/logs
+      - D:\docker\logs:/app/logs
     ports:
       - "8501:8501"
     networks:
@@ -154,7 +154,7 @@ services:
       - /proc:/rootfs/proc:ro
       - /sys:/rootfs/sys:ro
       - /etc:/rootfs/etc:ro
-      - aitb_logs:/var/log/telegraf
+      - D:\docker\logs:/var/log/telegraf
     networks:
       - aitb-network
     depends_on:
@@ -172,10 +172,10 @@ services:
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
     volumes:
-      - grafana_data:/var/lib/grafana
+      - D:\docker\grafana\data:/var/lib/grafana
       - ./config/grafana/provisioning:/etc/grafana/provisioning
       - ./config/grafana/dashboards:/var/lib/grafana/dashboards
-      - aitb_logs:/var/log/grafana
+      - D:\docker\logs:/var/log/grafana
     ports:
       - "3001:3000"
     networks:
@@ -204,7 +204,7 @@ services:
       INFLUX_BUCKET: ${INFLUX_BUCKET:-aitb}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
-      - aitb_logs:/app/logs
+      - D:\docker\logs:/app/logs
       - ./config:/app/config:ro
     networks:
       - aitb-network
@@ -220,14 +220,13 @@ services:
     environment:
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_SCHEDULE: "0 0 2 * * *"  # Daily at 2 AM
-      WATCHTOWER_NOTIFICATIONS: telegram
-      WATCHTOWER_NOTIFICATION_TELEGRAM_TOKEN: ${TG_BOT_TOKEN:-your_telegram_bot_token}
-      WATCHTOWER_NOTIFICATION_TELEGRAM_CHAT_ID: ${TG_CHAT_ID:-your_telegram_chat_id}
+      WATCHTOWER_NOTIFICATIONS: shoutrrr
+      WATCHTOWER_NOTIFICATION_URL: "telegram://${TG_BOT_TOKEN}@telegram?channels=${TG_CHAT_ID}"
       WATCHTOWER_INCLUDE_RESTARTING: "true"
       WATCHTOWER_ROLLING_RESTART: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - aitb_logs:/var/log/watchtower
+      - D:\docker\logs:/var/log/watchtower
     networks:
       - aitb-network
     restart: unless-stopped
@@ -255,24 +254,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-# Named Volumes for Persistent Data
-volumes:
-  # Database and Time Series Data
-  influxdb_data:
-    driver: local
-  influxdb_config:
-    driver: local
-  grafana_data:
-    driver: local
-  
-  # Application Data
-  aitb_data:
-    driver: local
-  aitb_models:
-    driver: local
-  aitb_logs:
-    driver: local
 
 # Network Configuration
 networks:

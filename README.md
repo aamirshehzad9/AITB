@@ -1,5 +1,9 @@
 # AITB - AI Trading Bot Platform
 
+> **⚠️ MANDATORY REQUIREMENT FOR ALL AGENTS:**  
+> **Agents MUST read `/context/project_manifest.yaml` before any action.**  
+> This file contains essential configuration, service definitions, and project guardrails.
+
 ![AITB Logo](docs/images/aitb-logo.png)
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/aitb/releases)

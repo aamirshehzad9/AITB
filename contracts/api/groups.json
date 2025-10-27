@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TradingView Groups Contract", 
+  "description": "Symbol groups and permissions for access control",
+  "version": "1.0.0",
+  
+  "endpoint": "/groups",
+  "method": "GET",
+  
+  "request": {
+    "type": "object",
+    "properties": {
+      "user": {
+        "type": "string",
+        "description": "User identifier (optional)"
+      }
+    }
+  },
+  
+  "response": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "enum": ["ok", "error"],
+        "description": "Status of the request"
+      },
+      "groups": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/Group"
+        },
+        "description": "Array of symbol groups"
+      },
+      "errmsg": {
+        "type": "string",
+        "description": "Error message (only present if s=error)"
+      }
+    },
+    "required": ["s"]
+  },
+  
+  "definitions": {
+    "Group": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Group name identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human readable group description"
+        },
+        "symbols": {
+          "type": "array", 
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of symbols in this group"
+        },
+        "permissions": {
+          "$ref": "#/definitions/Permissions",
+          "description": "Permissions for this group"
+        }
+      },
+      "required": ["name", "symbols", "permissions"]
+    },
+    
+    "Permissions": {
+      "type": "object",
+      "properties": {
+        "quotes": {
+          "type": "boolean",
+          "description": "Permission to access quotes"
+        },
+        "depth": {
+          "type": "boolean", 
+          "description": "Permission to access order book depth"
+        },
+        "history": {
+          "type": "boolean",
+          "description": "Permission to access historical data"
+        },
+        "trading": {
+          "type": "boolean",
+          "description": "Permission to place trades"
+        },
+        "streaming": {
+          "type": "boolean",
+          "description": "Permission to access real-time streaming"
+        }
+      },
+      "required": ["quotes", "depth", "history", "trading", "streaming"]
+    }
+  },
+  
+  "examples": {
+    "response": {
+      "s": "ok",
+      "groups": [
+        {
+          "name": "crypto_major",
+          "description": "Major Cryptocurrencies",
+          "symbols": ["BTCUSDT", "ETHUSDT", "ADAUSDT"],
+          "permissions": {
+            "quotes": true,
+            "depth": true, 
+            "history": true,
+            "trading": true,
+            "streaming": true
+          }
+        },
+        {
+          "name": "crypto_minor",
+          "description": "Minor Cryptocurrencies", 
+          "symbols": ["DOTUSDT", "LINKUSDT", "UNIUSDT"],
+          "permissions": {
+            "quotes": true,
+            "depth": false,
+            "history": true,
+            "trading": false,
+            "streaming": false
+          }
+        }
+      ]
+    }
+  }
+}

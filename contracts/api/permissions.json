@@ -1,0 +1,277 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TradingView Permissions Contract",
+  "description": "User permissions and access control for trading operations",
+  "version": "1.0.0",
+  
+  "endpoint": "/permissions",
+  "method": "GET",
+  
+  "request": {
+    "type": "object",
+    "properties": {
+      "user": {
+        "type": "string",
+        "description": "User identifier",
+        "example": "user123"
+      },
+      "symbol": {
+        "type": "string",
+        "description": "Symbol to check permissions for (optional)",
+        "example": "BTCUSDT"
+      }
+    },
+    "required": ["user"]
+  },
+  
+  "response": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "enum": ["ok", "error"],
+        "description": "Status of the request"
+      },
+      "user": {
+        "type": "string",
+        "description": "User identifier"
+      },
+      "permissions": {
+        "$ref": "#/definitions/UserPermissions",
+        "description": "User permissions"
+      },
+      "trading_permissions": {
+        "$ref": "#/definitions/TradingPermissions", 
+        "description": "Trading-specific permissions"
+      },
+      "restrictions": {
+        "$ref": "#/definitions/Restrictions",
+        "description": "User restrictions and limits"
+      },
+      "allowed_symbols": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array of symbols user has access to"
+      },
+      "errmsg": {
+        "type": "string",
+        "description": "Error message (only present if s=error)"
+      }
+    },
+    "required": ["s", "user"]
+  },
+  
+  "definitions": {
+    "UserPermissions": {
+      "type": "object",
+      "properties": {
+        "quotes": {
+          "type": "boolean",
+          "description": "Permission to access real-time quotes"
+        },
+        "depth": {
+          "type": "boolean",
+          "description": "Permission to access order book depth"
+        },
+        "history": {
+          "type": "boolean",
+          "description": "Permission to access historical data"
+        },
+        "streaming": {
+          "type": "boolean",
+          "description": "Permission to access real-time streaming data"
+        },
+        "trading": {
+          "type": "boolean",
+          "description": "Permission to place trades"
+        },
+        "modify_orders": {
+          "type": "boolean",
+          "description": "Permission to modify existing orders"
+        },
+        "cancel_orders": {
+          "type": "boolean", 
+          "description": "Permission to cancel orders"
+        },
+        "view_positions": {
+          "type": "boolean",
+          "description": "Permission to view positions"
+        },
+        "view_orders": {
+          "type": "boolean",
+          "description": "Permission to view order history"
+        }
+      },
+      "required": ["quotes", "depth", "history", "streaming", "trading"]
+    },
+    
+    "TradingPermissions": {
+      "type": "object",
+      "properties": {
+        "buy": {
+          "type": "boolean",
+          "description": "Permission to place buy orders"
+        },
+        "sell": {
+          "type": "boolean",
+          "description": "Permission to place sell orders"
+        },
+        "short": {
+          "type": "boolean",
+          "description": "Permission to short sell"
+        },
+        "margin": {
+          "type": "boolean",
+          "description": "Permission to trade on margin"
+        },
+        "order_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["market", "limit", "stop", "stop_limit", "trailing_stop"]
+          },
+          "description": "Allowed order types"
+        }
+      },
+      "required": ["buy", "sell", "order_types"]
+    },
+    
+    "Restrictions": {
+      "type": "object",
+      "properties": {
+        "max_position_size": {
+          "type": "number",
+          "description": "Maximum position size (in base currency)",
+          "minimum": 0
+        },
+        "max_order_size": {
+          "type": "number",
+          "description": "Maximum single order size",
+          "minimum": 0
+        },
+        "daily_trade_limit": {
+          "type": "number",
+          "description": "Daily trading volume limit",
+          "minimum": 0
+        },
+        "rate_limit_requests_per_minute": {
+          "type": "integer",
+          "description": "API rate limit (requests per minute)",
+          "minimum": 1
+        },
+        "blocked_symbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of blocked symbols for this user"
+        },
+        "trading_hours": {
+          "$ref": "#/definitions/TradingHours",
+          "description": "Allowed trading hours"
+        }
+      }
+    },
+    
+    "TradingHours": {
+      "type": "object",
+      "properties": {
+        "timezone": {
+          "type": "string",
+          "description": "Timezone for trading hours",
+          "example": "UTC"
+        },
+        "sessions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TradingSession"
+          },
+          "description": "Array of allowed trading sessions"
+        }
+      },
+      "required": ["timezone", "sessions"]
+    },
+    
+    "TradingSession": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Session name",
+          "example": "Regular"
+        },
+        "start_time": {
+          "type": "string",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "Start time in HH:MM format",
+          "example": "09:30"
+        },
+        "end_time": {
+          "type": "string",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "End time in HH:MM format", 
+          "example": "16:00"
+        },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+          },
+          "description": "Days of the week this session is active"
+        }
+      },
+      "required": ["name", "start_time", "end_time", "days"]
+    }
+  },
+  
+  "examples": {
+    "request": {
+      "user": "user123",
+      "symbol": "BTCUSDT"
+    },
+    "response": {
+      "s": "ok",
+      "user": "user123",
+      "permissions": {
+        "quotes": true,
+        "depth": true,
+        "history": true,
+        "streaming": true,
+        "trading": true,
+        "modify_orders": true,
+        "cancel_orders": true,
+        "view_positions": true,
+        "view_orders": true
+      },
+      "trading_permissions": {
+        "buy": true,
+        "sell": true,
+        "short": false,
+        "margin": false,
+        "order_types": ["market", "limit", "stop", "stop_limit"]
+      },
+      "restrictions": {
+        "max_position_size": 10000,
+        "max_order_size": 1000,
+        "daily_trade_limit": 50000,
+        "rate_limit_requests_per_minute": 60,
+        "blocked_symbols": [],
+        "trading_hours": {
+          "timezone": "UTC",
+          "sessions": [
+            {
+              "name": "24x7",
+              "start_time": "00:00",
+              "end_time": "23:59",
+              "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+            }
+          ]
+        }
+      },
+      "allowed_symbols": ["BTCUSDT", "ETHUSDT", "ADAUSDT"]
+    }
+  }
+}

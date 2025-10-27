@@ -1,0 +1,201 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TradingView Symbol Info Contract",
+  "description": "Symbol information and metadata for TradingView broker integration",
+  "version": "1.0.0",
+  
+  "endpoint": "/symbol_info",
+  "method": "GET",
+  
+  "request": {
+    "type": "object",
+    "properties": {
+      "symbol": {
+        "type": "string",
+        "description": "Symbol name to get info for",
+        "example": "BTCUSDT"
+      }
+    },
+    "required": ["symbol"]
+  },
+  
+  "response": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "enum": ["ok", "error"],
+        "description": "Status of the request"
+      },
+      "symbol": {
+        "type": "string",
+        "description": "Symbol name"
+      },
+      "description": {
+        "type": "string", 
+        "description": "Human readable symbol description"
+      },
+      "type": {
+        "type": "string",
+        "enum": ["stock", "index", "forex", "crypto", "futures", "bond"],
+        "description": "Instrument type"
+      },
+      "session": {
+        "type": "string",
+        "description": "Trading session (e.g., '24x7' for crypto)",
+        "example": "24x7"
+      },
+      "exchange": {
+        "type": "string",
+        "description": "Exchange name",
+        "example": "Binance"
+      },
+      "listed_exchange": {
+        "type": "string",
+        "description": "Exchange where symbol is primarily listed"
+      },
+      "timezone": {
+        "type": "string",
+        "description": "Exchange timezone",
+        "example": "Etc/UTC"
+      },
+      "minmov": {
+        "type": "number",
+        "description": "Minimal price movement",
+        "minimum": 0
+      },
+      "pricescale": {
+        "type": "number",
+        "description": "Price scale (10^n for n decimal places)",
+        "minimum": 1
+      },
+      "minmov2": {
+        "type": "number",
+        "description": "Minimal price movement for secondary currency"
+      },
+      "fractional": {
+        "type": "boolean",
+        "description": "Whether prices are fractional"
+      },
+      "has_intraday": {
+        "type": "boolean",
+        "description": "Whether intraday data is available"
+      },
+      "has_no_volume": {
+        "type": "boolean", 
+        "description": "Whether volume data is not available"
+      },
+      "has_weekly_and_monthly": {
+        "type": "boolean",
+        "description": "Whether weekly/monthly data is available"
+      },
+      "has_daily": {
+        "type": "boolean",
+        "description": "Whether daily data is available"
+      },
+      "supported_resolutions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array of supported resolutions"
+      },
+      "intraday_multipliers": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Supported intraday multipliers"
+      },
+      "has_seconds": {
+        "type": "boolean",
+        "description": "Whether seconds resolution is supported"
+      },
+      "seconds_multipliers": {
+        "type": "array",
+        "items": {
+          "type": "string" 
+        },
+        "description": "Supported seconds multipliers"
+      },
+      "data_status": {
+        "type": "string",
+        "enum": ["streaming", "endofday", "pulsed", "delayed_streaming"],
+        "description": "Data feed status"
+      },
+      "expired": {
+        "type": "boolean",
+        "description": "Whether the symbol has expired"
+      },
+      "expiration_date": {
+        "type": "integer",
+        "description": "Expiration date (Unix timestamp)"
+      },
+      "sector": {
+        "type": "string",
+        "description": "Market sector"
+      },
+      "industry": {
+        "type": "string",
+        "description": "Industry classification"
+      },
+      "currency_code": {
+        "type": "string",
+        "description": "Currency code (e.g., 'USD')"
+      },
+      "original_currency_code": {
+        "type": "string",
+        "description": "Original currency code"
+      },
+      "unit_id": {
+        "type": "string",
+        "description": "Unit identifier"
+      },
+      "original_unit_id": {
+        "type": "string",
+        "description": "Original unit identifier"
+      },
+      "unit_conversion_types": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Supported unit conversion types"
+      },
+      "errmsg": {
+        "type": "string",
+        "description": "Error message (only present if s=error)"
+      }
+    },
+    "required": ["s", "symbol"]
+  },
+  
+  "examples": {
+    "request": {
+      "symbol": "BTCUSDT"
+    },
+    "response": {
+      "s": "ok",
+      "symbol": "BTCUSDT",
+      "description": "Bitcoin / Tether USD",
+      "type": "crypto",
+      "session": "24x7",
+      "exchange": "Binance",
+      "listed_exchange": "Binance",
+      "timezone": "Etc/UTC",
+      "minmov": 1,
+      "pricescale": 100,
+      "fractional": false,
+      "has_intraday": true,
+      "has_no_volume": false,
+      "has_weekly_and_monthly": true,
+      "has_daily": true,
+      "supported_resolutions": ["1", "5", "15", "30", "60", "240", "1D", "1W", "1M"],
+      "intraday_multipliers": ["1", "5", "15", "30", "60", "240"],
+      "has_seconds": false,
+      "data_status": "streaming",
+      "expired": false,
+      "currency_code": "USDT"
+    }
+  }
+}

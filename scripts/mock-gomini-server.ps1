@@ -1,5 +1,6 @@
 #!/usr/bin/env powershell
 # Mock GOmini-AI verification endpoint for testing
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
 # Runs on http://192.168.1.4:8505/handshake/verify
 
 param(

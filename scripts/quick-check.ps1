@@ -1,3 +1,5 @@
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
+
 Write-Host "AITB Host Agent - Status Check" -ForegroundColor Cyan
 Write-Host "===============================" -ForegroundColor Cyan
 

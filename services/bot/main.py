@@ -29,6 +29,7 @@ import duckdb
 from telegram import Bot
 from telegram.error import TelegramError
 import schedule
+import psutil
 
 # Configure logging
 logging.basicConfig(
@@ -554,9 +555,16 @@ class TradingEngine:
     async def trading_loop(self):
         """Main trading loop"""
         logger.info("Starting trading loop...")
+        last_heartbeat = 0
         
         while is_running:
             try:
+                # Heartbeat logging every 60 seconds or less
+                current_time = time.time()
+                if current_time - last_heartbeat >= 60:
+                    logger.info(f"🟢 HEARTBEAT: AITB Bot alive - {datetime.now(timezone.utc).isoformat()} - Active pairs: {len(config.trading_pairs)} - Memory: {psutil.virtual_memory().percent:.1f}%")
+                    last_heartbeat = current_time
+                
                 for pair in config.trading_pairs:
                     # Analyze market
                     analysis = await self.analyze_market(pair)
@@ -587,7 +595,7 @@ class TradingEngine:
                 self.metrics_manager.write_performance_metrics({
                     'active_pairs': len(config.trading_pairs),
                     'bot_uptime': time.time() - trading_session.get('start_time', time.time()),
-                    'memory_usage': __import__('psutil').virtual_memory().percent
+                    'memory_usage': psutil.virtual_memory().percent
                 })
                 
                 # Wait before next iteration

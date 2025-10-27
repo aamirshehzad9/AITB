@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TradingView History Contract",
+  "description": "Historical OHLCV data with 00:00 UTC daily bars rule and gap requirements",
+  "version": "1.0.0",
+  
+  "endpoint": "/history",
+  "method": "GET",
+  
+  "request": {
+    "type": "object",
+    "properties": {
+      "symbol": {
+        "type": "string",
+        "description": "Symbol name",
+        "example": "BTCUSDT"
+      },
+      "resolution": {
+        "type": "string",
+        "enum": ["1", "5", "15", "30", "60", "240", "1D", "1W", "1M"],
+        "description": "Resolution in minutes or D/W/M for day/week/month",
+        "example": "1D"
+      },
+      "from": {
+        "type": "integer",
+        "description": "Unix timestamp (from time)",
+        "minimum": 0
+      },
+      "to": {
+        "type": "integer", 
+        "description": "Unix timestamp (to time)",
+        "minimum": 0
+      },
+      "countback": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "description": "Number of bars to return (alternative to from/to)"
+      }
+    },
+    "required": ["symbol", "resolution"],
+    "anyOf": [
+      {"required": ["from", "to"]},
+      {"required": ["countback"]}
+    ]
+  },
+  
+  "response": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "enum": ["ok", "no_data", "error"],
+        "description": "Status of the request"
+      },
+      "t": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        },
+        "description": "Array of timestamps (Unix timestamps)"
+      },
+      "o": {
+        "type": "array",
+        "items": {
+          "type": "number",
+          "minimum": 0
+        },
+        "description": "Array of open prices"
+      },
+      "h": {
+        "type": "array",
+        "items": {
+          "type": "number", 
+          "minimum": 0
+        },
+        "description": "Array of high prices"
+      },
+      "l": {
+        "type": "array",
+        "items": {
+          "type": "number",
+          "minimum": 0
+        },
+        "description": "Array of low prices"
+      },
+      "c": {
+        "type": "array",
+        "items": {
+          "type": "number",
+          "minimum": 0
+        },
+        "description": "Array of close prices"
+      },
+      "v": {
+        "type": "array",
+        "items": {
+          "type": "number",
+          "minimum": 0
+        },
+        "description": "Array of volumes"
+      },
+      "nextTime": {
+        "type": "integer",
+        "description": "Next bar time (for pagination)"
+      },
+      "errmsg": {
+        "type": "string",
+        "description": "Error message (only present if s=error)"
+      }
+    },
+    "required": ["s"],
+    "allOf": [
+      {
+        "if": {
+          "properties": {"s": {"const": "ok"}}
+        },
+        "then": {
+          "required": ["t", "o", "h", "l", "c", "v"]
+        }
+      }
+    ]
+  },
+  
+  "requirements": {
+    "daily_bars_rule": {
+      "description": "Daily bars MUST start at 00:00 UTC",
+      "implementation": "All 1D resolution bars must have timestamps at 00:00:00 UTC",
+      "timezone": "UTC",
+      "alignment": "00:00:00"
+    },
+    "gap_requirements": {
+      "max_gap_tolerance": "5%",
+      "description": "Mismatched bars should be ≤5% of total requested range",
+      "missing_data_handling": "Fill gaps with previous close or mark as no_data",
+      "weekend_handling": "Skip weekends for traditional markets, continuous for crypto"
+    },
+    "data_quality": {
+      "ohlc_validation": "High >= max(Open, Close), Low <= min(Open, Close)",
+      "volume_validation": "Volume >= 0",
+      "timestamp_validation": "Timestamps must be in ascending order",
+      "no_future_data": "No bars with timestamps in the future"
+    },
+    "array_consistency": {
+      "description": "All arrays (t, o, h, l, c, v) must have the same length",
+      "max_bars_per_request": 5000
+    }
+  },
+  
+  "resolution_details": {
+    "intraday": {
+      "1": "1 minute",
+      "5": "5 minutes", 
+      "15": "15 minutes",
+      "30": "30 minutes",
+      "60": "1 hour",
+      "240": "4 hours"
+    },
+    "daily_and_above": {
+      "1D": "1 day (00:00 UTC aligned)",
+      "1W": "1 week (Monday 00:00 UTC)",
+      "1M": "1 month (1st day 00:00 UTC)"
+    }
+  },
+  
+  "examples": {
+    "request_with_range": {
+      "symbol": "BTCUSDT",
+      "resolution": "1D", 
+      "from": 1698336000,
+      "to": 1698422400
+    },
+    "request_with_countback": {
+      "symbol": "ETHUSDT",
+      "resolution": "1D",
+      "countback": 30
+    },
+    "response_success": {
+      "s": "ok",
+      "t": [1698336000, 1698422400, 1698508800],
+      "o": [43100.0, 43250.0, 43180.0],
+      "h": [43500.0, 43400.0, 43300.0], 
+      "l": [43000.0, 43150.0, 43100.0],
+      "c": [43250.0, 43180.0, 43220.0],
+      "v": [1250000, 980000, 1100000],
+      "nextTime": 1698595200
+    },
+    "response_no_data": {
+      "s": "no_data",
+      "nextTime": 1698422400
+    },
+    "response_error": {
+      "s": "error",
+      "errmsg": "Invalid symbol"
+    }
+  }
+}

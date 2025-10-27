@@ -1,0 +1,274 @@
+﻿@model AITB.WebApp.Controllers.DashboardModel
+@{
+    ViewData["Title"] = "Trading Dashboard";
+    Layout = "_Layout";
+}
+
+<div class="flex w-full h-full">
+    <!-- Left Panel: Symbol List -->
+    <div class="w-64 bg-binance-gray border-r border-gray-700 flex flex-col">
+        <div class="p-4 border-b border-gray-700">
+            <h3 class="text-lg font-semibold text-white mb-3">Markets</h3>
+            <input type="text" placeholder="Search..." 
+                   class="w-full px-3 py-2 bg-binance-dark border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-binance-yellow">
+        </div>
+        
+        <div class="flex-1 overflow-y-auto scrollbar-thin" x-data="symbolList()">
+            <div class="p-2">
+                <template x-for="symbol in symbols" :key="symbol.symbol">
+                    <div class="p-3 hover:bg-gray-700 cursor-pointer rounded mb-1 flex justify-between items-center"
+                         :class="{ 'bg-binance-yellow/10 border-l-2 border-binance-yellow': symbol.symbol === currentSymbol }"
+                         @click="selectSymbol(symbol.symbol)">
+                        <div>
+                            <div class="font-medium text-white" x-text="symbol.display"></div>
+                            <div class="text-xs text-gray-400" x-text="symbol.volumeText"></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-medium" 
+                                 :class="symbol.priceChangePercent >= 0 ? 'text-green-profit' : 'text-red-loss'"
+                                 x-text="'$' + Number(symbol.lastPrice).toLocaleString()"></div>
+                            <div class="text-xs"
+                                 :class="symbol.priceChangePercent >= 0 ? 'text-green-profit' : 'text-red-loss'"
+                                 x-text="(symbol.priceChangePercent >= 0 ? '+' : '') + Number(symbol.priceChangePercent).toFixed(2) + '%'">
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Center: Chart Area -->
+    <div class="flex-1 bg-binance-dark flex flex-col">
+        <!-- Chart Header -->
+        <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <h2 class="text-xl font-bold text-white" id="symbol-name">BTC/USDT</h2>
+                <div class="text-2xl font-bold text-white" id="current-price">$43,250.00</div>
+                <div class="text-green-profit text-sm" id="price-change">+2.34%</div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button class="px-3 py-1 bg-binance-yellow text-black rounded text-sm font-medium" data-int="1m">1m</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="5m">5m</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="15m">15m</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="1h">1h</button>
+                <button class="px-3 py-1 bg-gray-700 text-white rounded text-sm" data-int="1d">1d</button>
+            </div>
+        </div>
+        
+        <!-- Chart Container -->
+        <div class="flex-1 p-4">
+            <div id="trading-chart" class="w-full h-full bg-binance-dark rounded"></div>
+        </div>
+    </div>
+    
+    <!-- Right Panel: AI Signals & Controls -->
+    <div class="w-80 bg-binance-gray border-l border-gray-700 flex flex-col">
+        <!-- AI Trading Signals -->
+        <div class="p-4 border-b border-gray-700">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center">
+                <i class="fas fa-brain text-binance-yellow mr-2"></i>
+                AI Insights
+            </h3>
+            <div id="ai-signal" class="mb-4"></div>
+        </div>
+        
+        <!-- Bot Controls -->
+        <div class="p-4 border-b border-gray-700" x-data="botControls()">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center">
+                <i class="fas fa-robot text-binance-yellow mr-2"></i>
+                Bot Controls
+            </h3>
+            
+            <div class="space-y-3">
+                <div class="flex space-x-2">
+                    <button @click="startBot()" 
+                            :disabled="botActive"
+                            :class="botActive ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
+                            class="flex-1 py-2 px-4 rounded text-white font-medium transition-colors">
+                        <i class="fas fa-play mr-1"></i> Start
+                    </button>
+                    <button @click="pauseBot()"
+                            :disabled="!botActive"
+                            :class="!botActive ? 'bg-gray-600 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'"
+                            class="flex-1 py-2 px-4 rounded text-white font-medium transition-colors">
+                        <i class="fas fa-pause mr-1"></i> Pause
+                    </button>
+                    <button @click="stopBot()"
+                            :disabled="!botActive"
+                            :class="!botActive ? 'bg-gray-600 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'"
+                            class="flex-1 py-2 px-4 rounded text-white font-medium transition-colors">
+                        <i class="fas fa-stop mr-1"></i> Stop
+                    </button>
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Strategy Mode</label>
+                    <select x-model="strategy" @change="updateStrategy()" 
+                            class="w-full px-3 py-2 bg-binance-dark border border-gray-600 rounded text-white focus:outline-none focus:border-binance-yellow">
+                        <option value="conservative">Conservative</option>
+                        <option value="balanced">Balanced</option>
+                        <option value="aggressive">Aggressive</option>
+                    </select>
+                </div>
+                
+                <div class="bg-binance-dark rounded p-3">
+                    <div class="text-sm text-gray-400 mb-2">Bot Status</div>
+                    <div class="flex items-center space-x-2">
+                        <div :class="botActive ? 'bg-green-500' : 'bg-gray-500'" class="w-2 h-2 rounded-full"></div>
+                        <span x-text="botActive ? 'Active' : 'Inactive'" class="text-white"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Summary -->
+        <div class="p-4 border-b border-gray-700">
+            <h3 class="text-lg font-semibold text-white mb-3">Account</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Balance:</span>
+                    <span class="text-white font-medium" id="account-balance">$10,000.00</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Unrealized PnL:</span>
+                    <span class="text-green-profit font-medium">+$234.56</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Daily Gain:</span>
+                    <span class="text-green-profit font-medium">+2.35%</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Total Profit:</span>
+                    <span class="text-green-profit font-medium">+$1,234.56</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Open Positions -->
+        <div class="flex-1 p-4 overflow-y-auto scrollbar-thin">
+            <h3 class="text-lg font-semibold text-white mb-3">Open Positions</h3>
+            <div class="space-y-2" id="positions-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom: Order Book & Trade History -->
+<div class="fixed bottom-0 left-64 right-0 h-40 bg-binance-gray border-t border-gray-700 flex">
+    <!-- Order Book -->
+    <div class="w-1/2 border-r border-gray-700 p-4">
+        <h3 class="text-sm font-semibold text-white mb-3">Order Book</h3>
+        <div class="flex space-x-4 h-full">
+            <!-- Bids -->
+            <div class="flex-1">
+                <div class="text-xs text-gray-400 mb-2">Bids</div>
+                <div class="space-y-1 text-xs" id="order-book-bids"></div>
+            </div>
+            
+            <!-- Asks -->
+            <div class="flex-1">
+                <div class="text-xs text-gray-400 mb-2">Asks</div>
+                <div class="space-y-1 text-xs" id="order-book-asks"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Trade History -->
+    <div class="w-1/2 p-4">
+        <h3 class="text-sm font-semibold text-white mb-3">Recent Trades</h3>
+        <div class="space-y-1 text-xs overflow-y-auto scrollbar-thin h-full" id="trade-history"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Symbol list Alpine.js component - fetch live top 10 from backend and refresh
+        function symbolList() {
+            return {
+                currentSymbol: 'BTCUSDT',
+                symbols: [],
+                interval: '1m',
+                refreshTimer: null,
+                async fetchTop10() {
+                    try {
+                        const res = await fetch('/api/market/top10');
+                        if (!res.ok) throw new Error('Failed to load markets');
+                        const data = await res.json();
+                        this.symbols = data.map((t) => ({
+                            symbol: t.symbol,
+                            display: t.symbol.replace('USDT','/USDT'),
+                            lastPrice: t.lastPrice,
+                            priceChangePercent: t.priceChangePercent,
+                            volumeText: new Intl.NumberFormat().format(t.volume)
+                        }));
+                    } catch (e) {
+                        console.error(e);
+                    }
+                },
+                selectSymbol(sym) {
+                    this.currentSymbol = sym;
+                    window.AITB.currentSymbol = sym;
+                    document.getElementById('symbol-name').textContent = sym.replace('USDT','/USDT');
+                    loadCandles(sym, this.interval);
+                },
+                init() {
+                    this.fetchTop10();
+                    this.refreshTimer = setInterval(() => this.fetchTop10(), 15000);
+                },
+                destroy() {
+                    if (this.refreshTimer) clearInterval(this.refreshTimer);
+                }
+            }
+        }
+        
+        // Bot controls Alpine.js component  (unchanged)
+        function botControls() {
+            return {
+                botActive: false,
+                strategy: 'balanced',
+                async startBot() { try { await fetch('/api/bot/start', { method: 'POST' }); this.botActive = true; } catch(e) { console.error(e);} },
+                async pauseBot() { try { await fetch('/api/bot/pause', { method: 'POST' }); this.botActive = false; } catch(e) { console.error(e);} },
+                async stopBot() { try { await fetch('/api/bot/stop', { method: 'POST' }); this.botActive = false; } catch(e) { console.error(e);} },
+                async updateStrategy() { try { await fetch('/api/bot/strategy', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ strategy: this.strategy }) }); } catch(e) { console.error(e);} }
+            }
+        }
+
+        let chart, candleSeries;
+        function ensureChart() {
+            const container = document.getElementById('trading-chart');
+            if (!container) return;
+            if (chart) return;
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                layout: { backgroundColor: '#181A20', textColor: '#848E9C' },
+                grid: { vertLines: { color: '#2B2F36' }, horzLines: { color: '#2B2F36' } },
+                rightPriceScale: { borderColor: '#2B2F36' },
+                timeScale: { borderColor: '#2B2F36', timeVisible: true, secondsVisible: false }
+            });
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#0ECB81', downColor: '#F6465D', borderDownColor: '#F6465D', borderUpColor: '#0ECB81', wickDownColor: '#F6465D', wickUpColor: '#0ECB81'
+            });
+            window.addEventListener('resize', () => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }));
+        }
+
+        async function loadCandles(symbol, interval) {
+            ensureChart();
+            try {
+                const res = await fetch(`/api/klines/candles?symbol=${symbol}&interval=${interval}&limit=300`);
+                if (!res.ok) throw new Error('Failed to load candles');
+                const data = await res.json();
+                candleSeries.setData(data);
+            } catch (e) {
+                console.error('candles error', e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const defSym = 'BTCUSDT';
+            const defInt = '1m';
+            loadCandles(defSym, defInt);
+        });
+    </script>
+}
