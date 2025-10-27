@@ -97,93 +97,115 @@ volumes:
     container_path: "/app/logs or /var/log/{service}"
     description: "Centralized logging for all services"
 
-# Environment variable keys mapping (which service reads which keys)
-environment_keys_mapping:
-  webapp:
-    - INFLUX_URL
-    - INFLUX_ORG
-    - INFLUX_BUCKET
-    - INFLUX_TOKEN
-    - GRAFANA_USER
-    - GRAFANA_PASSWORD
-    - MCP_BASE_URL
-    
-  inference:
-    - MCP_BASE_URL
-    - INFERENCE_API_BASE
-    - GOOGLE_STUDIO_API_KEY
-    - HUGGINGFACE_API_KEY_01
-    - HUGGINGFACE_API_KEY_02
-    - HUGGINGFACE_API_KEY_03
-    - INFLUX_URL
-    - INFLUX_ORG
-    - INFLUX_BUCKET
-    - INFLUX_TOKEN
-    
-  bot:
-    - BINANCE_API_KEY
-    - BINANCE_SECRET_KEY
-    - MY_BINANCE_API_KEY
-    - MY_BINANCE_SECRET_KEY
-    - COINAPI_KEY
-    - INFLUX_URL
-    - INFLUX_ORG
-    - INFLUX_BUCKET
-    - INFLUX_TOKEN
-    - INFERENCE_API_BASE
-    - MCP_BASE_URL
-    
-  notifier:
-    - TELEGRAM_BOT_NAME
-    - TELEGRAM_TOKEN
-    - TELEGRAM_CHAT_ID
-    - INFLUX_URL
-    - INFLUX_ORG
-    - INFLUX_BUCKET
-    - INFLUX_TOKEN
-    
-  dashboard:
-    - INFLUX_URL
-    - INFLUX_ORG
-    - INFLUX_BUCKET
-    - INFLUX_TOKEN
-    - GRAFANA_USER
-    - GRAFANA_PASSWORD
-    - MCP_BASE_URL
-
 # Environment variable keys (values from D:\Myenv.txt)
 environment_keys:
-  # InfluxDB
-  - INFLUX_USERNAME
-  - INFLUX_PASSWORD
+  # MCP and API Configuration
+  - MCP_BASE_URL
+  - INFERENCE_API_BASE
+  - GOOGLE_STUDIO_API_KEY
+  
+  # Market Data APIs
+  - COINAPI_KEY
+  
+  # Hugging Face API Keys (multiple for load balancing)
+  - HUGGINGFACE_API_KEY_01
+  - HUGGINGFACE_API_KEY_02
+  - HUGGINGFACE_API_KEY_03
+  
+  # Telegram Notifications
+  - TELEGRAM_BOT_NAME
+  - TELEGRAM_TOKEN
+  - TELEGRAM_CHAT_ID
+  
+  # Binance Trading API (multiple configurations)
+  - MY_BINANCE_API_KEY
+  - MY_BINANCE_SECRET_KEY
+  - BINANCE_API_KEY
+  - BINANCE_SECRET_KEY
+  
+  # InfluxDB Time Series Database
+  - INFLUX_URL
   - INFLUX_ORG
   - INFLUX_BUCKET
   - INFLUX_TOKEN
-  - INFLUX_URL
   
-  # Trading APIs
-  - COINAPI_KEY
-  - COINMARKETCAP_KEY
-  - BINANCE_API_KEY
-  - BINANCE_SECRET_KEY
-  - BINANCE_BASE_URL
-  - BINANCE_STREAM_URL
-  
-  # AI/ML
-  - HF_TOKEN
-  - HF_API_KEY
-  
-  # Notifications
-  - TG_BOT_TOKEN
-  - TG_CHAT_ID
-  
-  # Grafana
+  # Grafana Monitoring Dashboard
   - GRAFANA_USER
   - GRAFANA_PASSWORD
-  
-  # Runtime
-  - LOG_LEVEL
-  - MCP_BASE_URL
+
+# Service Environment Variable Mappings
+# Defines which service reads which environment keys
+service_environment_mappings:
+  webapp:
+    description: "ASP.NET Core web application"
+    environment_keys:
+      - INFLUX_URL
+      - INFLUX_ORG
+      - INFLUX_BUCKET
+      - INFLUX_TOKEN
+      - GRAFANA_USER
+      - GRAFANA_PASSWORD
+      - COINAPI_KEY
+      - MCP_BASE_URL
+    config_file: "D:\\configs\\aitb\\webapp\\.env"
+    
+  inference:
+    description: "ML inference service"
+    environment_keys:
+      - HUGGINGFACE_API_KEY_01
+      - HUGGINGFACE_API_KEY_02
+      - HUGGINGFACE_API_KEY_03
+      - GOOGLE_STUDIO_API_KEY
+      - INFLUX_URL
+      - INFLUX_ORG
+      - INFLUX_BUCKET
+      - INFLUX_TOKEN
+      - MCP_BASE_URL
+      - INFERENCE_API_BASE
+    config_file: "D:\\configs\\aitb\\inference\\.env"
+    
+  bot:
+    description: "Trading bot engine"
+    environment_keys:
+      - MY_BINANCE_API_KEY
+      - MY_BINANCE_SECRET_KEY
+      - BINANCE_API_KEY
+      - BINANCE_SECRET_KEY
+      - COINAPI_KEY
+      - INFLUX_URL
+      - INFLUX_ORG
+      - INFLUX_BUCKET
+      - INFLUX_TOKEN
+      - INFERENCE_API_BASE
+      - MCP_BASE_URL
+    config_file: "D:\\configs\\aitb\\bot\\.env"
+    
+  notifier:
+    description: "Notification service"
+    environment_keys:
+      - TELEGRAM_BOT_NAME
+      - TELEGRAM_TOKEN
+      - TELEGRAM_CHAT_ID
+      - INFLUX_URL
+      - INFLUX_ORG
+      - INFLUX_BUCKET
+      - INFLUX_TOKEN
+      - MCP_BASE_URL
+    config_file: "D:\\configs\\aitb\\notifier\\.env"
+    
+  dashboard:
+    description: "Streamlit analytics dashboard"
+    environment_keys:
+      - INFLUX_URL
+      - INFLUX_ORG
+      - INFLUX_BUCKET
+      - INFLUX_TOKEN
+      - GRAFANA_USER
+      - GRAFANA_PASSWORD
+      - COINAPI_KEY
+      - MCP_BASE_URL
+      - INFERENCE_API_BASE
+    config_file: "D:\\configs\\aitb\\dashboard\\.env"
 
 # Database Configuration (Episode 6)
 database:
