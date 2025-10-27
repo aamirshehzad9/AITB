@@ -1,0 +1,43 @@
+{
+  "serviceName": "bot",
+  "displayName": "AITB Trading Bot",
+  "description": "Core trading bot engine with strategy execution",
+  "app": "python",
+  "appParameters": "-m main",
+  "appDirectory": "D:\\apps\\aitb\\bot\\v1.0.0",
+  "workingDirectory": "D:\\apps\\aitb\\bot\\v1.0.0",
+  "environment": {
+    "PYTHONPATH": "D:\\apps\\aitb\\bot\\v1.0.0",
+    "PYTHONUNBUFFERED": "1",
+    "BOT_DATA_PATH": "D:\\data\\bot",
+    "BOT_MODE": "production"
+  },
+  "logging": {
+    "stdOut": "D:\\logs\\aitb\\bot\\bot-stdout.log",
+    "stdErr": "D:\\logs\\aitb\\bot\\bot-stderr.log",
+    "rotationHint": "daily",
+    "maxFileSizeMB": 200,
+    "retentionDays": 90,
+    "heartbeatLog": "D:\\logs\\aitb\\bot\\bot-heartbeat.log",
+    "heartbeatIntervalSeconds": 60
+  },
+  "recovery": {
+    "restartOnFailure": true,
+    "maxRestartAttempts": 10,
+    "restartDelaySeconds": 45,
+    "backoffMultiplier": 1.5,
+    "maxBackoffSeconds": 300,
+    "resetCounterAfterSeconds": 1800,
+    "criticalService": true
+  },
+  "healthCheck": {
+    "heartbeatFile": "D:\\logs\\aitb\\bot\\bot-heartbeat.log",
+    "maxHeartbeatAgeSeconds": 120,
+    "intervalSeconds": 30
+  },
+  "dependencies": {
+    "configPath": "D:\\configs\\aitb\\bot\\config.json",
+    "requiredServices": ["influxdb", "inference"],
+    "pythonRequirements": "D:\\apps\\aitb\\bot\\v1.0.0\\requirements.txt"
+  }
+}

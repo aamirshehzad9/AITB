@@ -1,0 +1,40 @@
+{
+  "serviceName": "inference",
+  "displayName": "AITB ML Inference Service",
+  "description": "Machine learning inference service for trading predictions",
+  "app": "python",
+  "appParameters": "-m main",
+  "appDirectory": "D:\\apps\\aitb\\inference\\v1.0.0",
+  "workingDirectory": "D:\\apps\\aitb\\inference\\v1.0.0",
+  "environment": {
+    "PYTHONPATH": "D:\\apps\\aitb\\inference\\v1.0.0",
+    "PYTHONUNBUFFERED": "1",
+    "ML_MODEL_PATH": "D:\\data\\models",
+    "INFERENCE_PORT": "8001"
+  },
+  "logging": {
+    "stdOut": "D:\\logs\\aitb\\inference\\inference-stdout.log",
+    "stdErr": "D:\\logs\\aitb\\inference\\inference-stderr.log",
+    "rotationHint": "daily",
+    "maxFileSizeMB": 100,
+    "retentionDays": 30
+  },
+  "recovery": {
+    "restartOnFailure": true,
+    "maxRestartAttempts": 3,
+    "restartDelaySeconds": 60,
+    "backoffMultiplier": 2.0,
+    "maxBackoffSeconds": 600,
+    "resetCounterAfterSeconds": 3600
+  },
+  "healthCheck": {
+    "endpoint": "http://localhost:8001/health",
+    "intervalSeconds": 30,
+    "timeoutSeconds": 15
+  },
+  "dependencies": {
+    "configPath": "D:\\configs\\aitb\\inference\\config.json",
+    "requiredServices": ["influxdb"],
+    "pythonRequirements": "D:\\apps\\aitb\\inference\\v1.0.0\\requirements.txt"
+  }
+}

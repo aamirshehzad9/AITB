@@ -1,0 +1,38 @@
+{
+  "serviceName": "webapp",
+  "displayName": "AITB Web Application",
+  "description": "ASP.NET Core web application for AITB trading interface",
+  "app": "dotnet",
+  "appParameters": "AITB.WebApp.dll",
+  "appDirectory": "D:\\apps\\aitb\\webapp\\v1.0.0",
+  "workingDirectory": "D:\\apps\\aitb\\webapp\\v1.0.0",
+  "environment": {
+    "ASPNETCORE_ENVIRONMENT": "Production",
+    "ASPNETCORE_URLS": "http://localhost:5000",
+    "DOTNET_ENVIRONMENT": "Production"
+  },
+  "logging": {
+    "stdOut": "D:\\logs\\aitb\\webapp\\webapp-stdout.log",
+    "stdErr": "D:\\logs\\aitb\\webapp\\webapp-stderr.log",
+    "rotationHint": "daily",
+    "maxFileSizeMB": 100,
+    "retentionDays": 30
+  },
+  "recovery": {
+    "restartOnFailure": true,
+    "maxRestartAttempts": 5,
+    "restartDelaySeconds": 30,
+    "backoffMultiplier": 2.0,
+    "maxBackoffSeconds": 300,
+    "resetCounterAfterSeconds": 3600
+  },
+  "healthCheck": {
+    "endpoint": "http://localhost:5000/health/live",
+    "intervalSeconds": 30,
+    "timeoutSeconds": 10
+  },
+  "dependencies": {
+    "configPath": "D:\\configs\\aitb\\webapp\\appsettings.json",
+    "requiredServices": ["influxdb", "postgres"]
+  }
+}
