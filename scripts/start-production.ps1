@@ -1,5 +1,5 @@
 # AITB Host Agent - Production Configuration
-# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action. Do not modify runtime or secrets in staging/prod. Run ACCEPTANCE.md before merge.
 # Sets the server to listen on 192.168.1.2 for production deployment
 
 Write-Host "AITB Host Agent - Production Configuration" -ForegroundColor Cyan

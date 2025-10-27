@@ -1,7 +1,7 @@
 # AITB API Contracts
 
 > **⚠️ MANDATORY REQUIREMENT FOR ALL AGENTS:**  
-> **Agents MUST read `/context/project_manifest.yaml` before any action.**
+> **Agents MUST read `/context/project_manifest.yaml` before any action. Do not modify runtime or secrets in staging/prod. Run ACCEPTANCE.md before merge.**
 
 TradingView-aligned API contracts for the AITB trading system.
 

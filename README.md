@@ -1,7 +1,7 @@
 # AITB - AI Trading Bot Platform
 
 > **⚠️ MANDATORY REQUIREMENT FOR ALL AGENTS:**  
-> **Agents MUST read `/context/project_manifest.yaml` before any action.**  
+> **Agents MUST read `/context/project_manifest.yaml` before any action. Do not modify runtime or secrets in staging/prod. Run ACCEPTANCE.md before merge.**  
 > This file contains essential configuration, service definitions, and project guardrails.
 
 ![AITB Logo](docs/images/aitb-logo.png)

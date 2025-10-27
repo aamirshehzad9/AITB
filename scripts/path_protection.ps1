@@ -1,5 +1,5 @@
 # AITB Path Protection Script
-# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action.
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action. Do not modify runtime or secrets in staging/prod. Run ACCEPTANCE.md before merge.
 # Prevents duplicate directory creation and validates workspace integrity
 
 $ErrorActionPreference = "Stop"

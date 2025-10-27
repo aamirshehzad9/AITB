@@ -1,4 +1,5 @@
 # AITB Main Build Script
+# ⚠️ MANDATORY: Agents MUST read /context/project_manifest.yaml before any action. Do not modify runtime or secrets in staging/prod. Run ACCEPTANCE.md before merge.
 # Orchestrates building all services and produces immutable versioned artifacts
 
 param(

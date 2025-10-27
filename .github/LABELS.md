@@ -1,5 +1,16 @@
 # GitHub Labels Configuration for AITB
-# Copy these labels into your GitHub repository settings
+
+> **⚠️ MANDATORY: Agents MUST read `/context/project_manifest.yaml` before any action. Do not modify runtime or secrets in staging/prod. Run ACCEPTANCE.md before merge.**
+
+## Component Labels (Episode 10)
+infra           | #FF6B6B | Infrastructure, Docker, deployment, CI/CD, DevOps changes
+contracts       | #4ECDC4 | API contracts, schemas, TradingView broker specifications  
+api             | #45B7D1 | REST API implementation, endpoints, controllers
+webapp          | #96CEB4 | ASP.NET webapp, frontend, UI/UX changes
+bot             | #FFEAA7 | Trading logic, algorithms, bot services
+data            | #DDA0DD | Database, data processing, storage, analytics
+docs            | #98D8C8 | Documentation updates, README changes, guides
+ops             | #F7DC6F | Monitoring, logging, alerts, operational tools
 
 ## 🎯 Episode Labels
 episode-0       | #0052CC | Episode 0 - Load context
