@@ -140,6 +140,70 @@ Write-Host "Episode 5 complete - Services ready for activation!" -ForegroundColo
 
 ## Health Checks
 
+### Episode 6: Automated Watchdog Monitoring
+**Production-Ready Health Monitoring System**
+
+```powershell
+# Episode 6 Watchdog Script - Comprehensive Health Monitoring
+# Location: D:\AITB\tools\watchdog.ps1
+
+# Basic monitoring (logs only to D:\logs\aitb\watchdog.log)
+.\tools\watchdog.ps1
+
+# With Telegram notifications (recommended for production)
+.\tools\watchdog.ps1 -TelegramToken $env:TG_BOT_TOKEN -TelegramChatId $env:TG_CHAT_ID
+
+# Custom monitoring interval (default 60 seconds)
+.\tools\watchdog.ps1 -CheckInterval 30
+
+# Production usage with all features
+.\tools\watchdog.ps1 `
+    -TelegramToken $env:TG_BOT_TOKEN `
+    -TelegramChatId $env:TG_CHAT_ID `
+    -CheckInterval 60 `
+    -LogLevel "INFO"
+```
+
+**Watchdog Features:**
+- ✅ **Health endpoint monitoring** - Tests all service /health endpoints
+- ✅ **Bot heartbeat validation** - Ensures ≤60s heartbeat requirement
+- ✅ **Telegram alert system** - Configurable notifications with cooldowns  
+- ✅ **Service state tracking** - Monitors status changes with persistence
+- ✅ **Grafana datasource checking** - Validates InfluxDB connectivity
+- ✅ **Comprehensive logging** - Detailed logs to `D:\logs\aitb\watchdog.log`
+- ⚠️ **CRITICAL: NO AUTO-RESTART during trading hours** - Prevents disruption
+- ✅ **Cooldown management** - Prevents notification spam
+
+**⚠️ IMPORTANT: Watchdog Trading Protection**
+```powershell
+# The watchdog script will NEVER automatically restart services during trading hours
+# This is a critical safety feature to prevent disruption of active trading
+# Manual intervention required for service failures during trading sessions
+```
+
+**Setting Up Telegram Notifications:**
+```powershell
+# 1. Create Telegram bot via @BotFather
+# 2. Get chat ID from @userinfobot
+# 3. Set environment variables
+$env:TG_BOT_TOKEN = "YOUR_BOT_TOKEN"
+$env:TG_CHAT_ID = "YOUR_CHAT_ID"
+
+# 4. Test watchdog with notifications
+.\tools\watchdog.ps1 -TelegramToken $env:TG_BOT_TOKEN -TelegramChatId $env:TG_CHAT_ID
+```
+
+**Running Watchdog as Background Service:**
+```powershell
+# Option 1: Run in background PowerShell session
+Start-Process powershell -ArgumentList "-WindowStyle Hidden", "-File", "D:\AITB\tools\watchdog.ps1", "-TelegramToken", "$env:TG_BOT_TOKEN", "-TelegramChatId", "$env:TG_CHAT_ID" -PassThru
+
+# Option 2: Create scheduled task for automatic startup
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-File D:\AITB\tools\watchdog.ps1 -TelegramToken $env:TG_BOT_TOKEN -TelegramChatId $env:TG_CHAT_ID"
+$trigger = New-ScheduledTaskTrigger -AtStartup
+Register-ScheduledTask -TaskName "AITB-Watchdog" -Action $action -Trigger $trigger -User "SYSTEM"
+```
+
 ### Automated Health Verification
 ```powershell
 # Run comprehensive health check

@@ -52,7 +52,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/app/logs/inference.log'),
+        logging.FileHandler('D:/logs/aitb/inference/inference.log'),
         logging.StreamHandler()
     ]
 )

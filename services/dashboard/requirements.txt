@@ -1,8 +1,13 @@
 # AITB Dashboard Service Dependencies
-# Streamlit-based real-time trading visualization
+# Streamlit-based real-time trading visualization + FastAPI data adapter
 
 streamlit==1.38.0
 plotly==5.22.0
 influxdb-client==1.49.0
 pandas==2.2.2
 requests==2.32.3
+
+# FastAPI dependencies for data adapter
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0

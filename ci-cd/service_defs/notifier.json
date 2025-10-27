@@ -1,0 +1,38 @@
+{
+  "serviceName": "notifier",
+  "displayName": "AITB Notification Service",
+  "description": "Alert and notification service for trading events",
+  "app": "python",
+  "appParameters": "-m main",
+  "appDirectory": "D:\\apps\\aitb\\notifier\\v1.0.0",
+  "workingDirectory": "D:\\apps\\aitb\\notifier\\v1.0.0",
+  "environment": {
+    "PYTHONPATH": "D:\\apps\\aitb\\notifier\\v1.0.0",
+    "PYTHONUNBUFFERED": "1",
+    "NOTIFICATION_MODE": "production"
+  },
+  "logging": {
+    "stdOut": "D:\\logs\\aitb\\notifier\\notifier-stdout.log",
+    "stdErr": "D:\\logs\\aitb\\notifier\\notifier-stderr.log",
+    "rotationHint": "daily",
+    "maxFileSizeMB": 50,
+    "retentionDays": 30
+  },
+  "recovery": {
+    "restartOnFailure": true,
+    "maxRestartAttempts": 5,
+    "restartDelaySeconds": 30,
+    "backoffMultiplier": 2.0,
+    "maxBackoffSeconds": 300,
+    "resetCounterAfterSeconds": 3600
+  },
+  "healthCheck": {
+    "pingInterval": 60,
+    "logFile": "D:\\logs\\aitb\\notifier\\notifier-health.log"
+  },
+  "dependencies": {
+    "configPath": "D:\\configs\\aitb\\notifier\\config.json",
+    "requiredServices": ["bot"],
+    "pythonRequirements": "D:\\apps\\aitb\\notifier\\v1.0.0\\requirements.txt"
+  }
+}

@@ -1,0 +1,595 @@
+# AITB Blue/Green Promotion Pipeline
+# Episode 7 - Automated zero-downtime deployment with atomic upstream switching
+
+name: AITB Blue/Green Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to promote (e.g., 1.0.0)'
+        required: true
+        type: string
+      source_environment:
+        description: 'Source environment (where artifacts are)'
+        required: true
+        default: 'artifacts'
+        type: choice
+        options:
+        - artifacts
+        - staging
+      target_color:
+        description: 'Target color slot (auto-detect idle by default)'
+        required: false
+        type: choice
+        options:
+        - auto
+        - blue
+        - green
+      skip_health_checks:
+        description: 'Skip health checks (for emergency deployments)'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Dry run - perform all steps except final switch'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DOTNET_VERSION: '8.0'
+  PYTHON_VERSION: '3.11'
+  DEPLOYMENT_VERSION: ${{ github.event.inputs.version }}
+  DRY_RUN: ${{ github.event.inputs.dry_run }}
+  SKIP_HEALTH_CHECKS: ${{ github.event.inputs.skip_health_checks }}
+
+jobs:
+  prepare-deployment:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.setup.outputs.version }}
+      current_environment: ${{ steps.detect.outputs.current_environment }}
+      target_environment: ${{ steps.detect.outputs.target_environment }}
+      deployment_id: ${{ steps.setup.outputs.deployment_id }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup deployment
+      id: setup
+      run: |
+        $version = "${{ github.event.inputs.version }}"
+        $deploymentId = "deploy-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "deployment_id=$deploymentId" >> $env:GITHUB_OUTPUT
+        
+        Write-Host "=== AITB Blue/Green Promotion ===" -ForegroundColor Cyan
+        Write-Host "Version: $version" -ForegroundColor Yellow
+        Write-Host "Deployment ID: $deploymentId" -ForegroundColor Yellow
+        Write-Host "Dry Run: ${{ env.DRY_RUN }}" -ForegroundColor Yellow
+      shell: pwsh
+      
+    - name: Detect current environment
+      id: detect
+      run: |
+        # Determine current active environment
+        $currentEnv = "unknown"
+        $targetEnv = "${{ github.event.inputs.target_color }}"
+        
+        try {
+          $mappingFile = "D:\AITB\ci-cd\nginx\env-mapping.conf"
+          if (Test-Path $mappingFile) {
+            $content = Get-Content $mappingFile -Raw
+            if ($content -match "webapp_blue") {
+              $currentEnv = "blue"
+            } elseif ($content -match "webapp_green") {
+              $currentEnv = "green"
+            }
+          }
+        } catch {
+          Write-Host "Could not detect current environment, defaulting to blue" -ForegroundColor Yellow
+          $currentEnv = "blue"
+        }
+        
+        # Auto-detect target if not specified
+        if ($targetEnv -eq "auto") {
+          if ($currentEnv -eq "blue") {
+            $targetEnv = "green"
+          } else {
+            $targetEnv = "blue"
+          }
+        }
+        
+        Write-Host "Current environment: $currentEnv" -ForegroundColor Green
+        Write-Host "Target environment: $targetEnv" -ForegroundColor Green
+        
+        echo "current_environment=$currentEnv" >> $env:GITHUB_OUTPUT
+        echo "target_environment=$targetEnv" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+      
+    - name: Create deployment directory
+      run: |
+        $deploymentDir = "D:\logs\aitb\deployment"
+        New-Item -Path $deploymentDir -ItemType Directory -Force
+        
+        # Create deployment manifest
+        $manifest = @{
+          deploymentId = "${{ steps.setup.outputs.deployment_id }}"
+          version = "${{ steps.setup.outputs.version }}"
+          currentEnvironment = "${{ steps.detect.outputs.current_environment }}"
+          targetEnvironment = "${{ steps.detect.outputs.target_environment }}"
+          startTime = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+          dryRun = [bool]"${{ env.DRY_RUN }}"
+          skipHealthChecks = [bool]"${{ env.SKIP_HEALTH_CHECKS }}"
+          status = "started"
+        } | ConvertTo-Json -Depth 3
+        
+        $manifest | Set-Content "$deploymentDir\${{ steps.setup.outputs.deployment_id }}.json"
+      shell: pwsh
+
+  download-artifacts:
+    runs-on: windows-latest
+    needs: prepare-deployment
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download release artifacts
+      run: |
+        $version = "${{ needs.prepare-deployment.outputs.version }}"
+        $artifactDir = "D:\AITB\artifacts\$version"
+        
+        Write-Host "Downloading artifacts for version: $version" -ForegroundColor Yellow
+        
+        # Create artifact directory
+        New-Item -Path $artifactDir -ItemType Directory -Force
+        
+        # For local testing, we'll look for existing dist files
+        # In production, this would download from artifact storage
+        $distDir = "D:\AITB\dist"
+        if (Test-Path $distDir) {
+          Write-Host "Using local dist directory for artifacts" -ForegroundColor Green
+          
+          $services = @("webapp", "inference", "bot", "notifier", "dashboard")
+          foreach ($service in $services) {
+            $zipFile = "$distDir\$service-$version.zip"
+            $checksumFile = "$distDir\$service-$version.zip.sha256"
+            
+            if (Test-Path $zipFile) {
+              Copy-Item $zipFile $artifactDir\
+              Write-Host "✅ Found $service package" -ForegroundColor Green
+              
+              if (Test-Path $checksumFile) {
+                Copy-Item $checksumFile $artifactDir\
+                Write-Host "✅ Found $service checksum" -ForegroundColor Green
+              }
+            } else {
+              Write-Host "⚠️ Missing $service package: $zipFile" -ForegroundColor Yellow
+            }
+          }
+        } else {
+          Write-Host "❌ No dist directory found. Run build pipeline first." -ForegroundColor Red
+          exit 1
+        }
+      shell: pwsh
+      
+    - name: Verify artifact integrity
+      run: |
+        $version = "${{ needs.prepare-deployment.outputs.version }}"
+        $artifactDir = "D:\AITB\artifacts\$version"
+        
+        Write-Host "Verifying artifact integrity..." -ForegroundColor Yellow
+        
+        $services = @("webapp", "inference", "bot", "notifier", "dashboard")
+        $verifiedCount = 0
+        
+        foreach ($service in $services) {
+          $zipFile = "$artifactDir\$service-$version.zip"
+          $checksumFile = "$artifactDir\$service-$version.zip.sha256"
+          
+          if ((Test-Path $zipFile) -and (Test-Path $checksumFile)) {
+            $expectedHash = (Get-Content $checksumFile).Split()[0]
+            $actualHash = (Get-FileHash $zipFile -Algorithm SHA256).Hash
+            
+            if ($expectedHash -eq $actualHash) {
+              Write-Host "✅ $service integrity verified" -ForegroundColor Green
+              $verifiedCount++
+            } else {
+              Write-Host "❌ $service integrity check failed" -ForegroundColor Red
+              Write-Host "  Expected: $expectedHash" -ForegroundColor Red
+              Write-Host "  Actual: $actualHash" -ForegroundColor Red
+              exit 1
+            }
+          } else {
+            Write-Host "⚠️ $service missing artifacts" -ForegroundColor Yellow
+          }
+        }
+        
+        Write-Host "Verified $verifiedCount/$($services.Count) service artifacts" -ForegroundColor Green
+      shell: pwsh
+
+  deploy-to-idle:
+    runs-on: windows-latest
+    needs: [prepare-deployment, download-artifacts]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Stop idle environment services
+      run: |
+        $targetEnv = "${{ needs.prepare-deployment.outputs.target_environment }}"
+        Write-Host "Stopping $targetEnv environment services..." -ForegroundColor Yellow
+        
+        $services = @("WebApp", "Inference", "Bot", "Notifier", "Dashboard")
+        foreach ($service in $services) {
+          $serviceName = "AITB-$service-$targetEnv"
+          try {
+            $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+            if ($svc -and $svc.Status -eq "Running") {
+              Stop-Service -Name $serviceName -Force
+              Write-Host "Stopped $serviceName" -ForegroundColor Green
+            } else {
+              Write-Host "$serviceName not running" -ForegroundColor Gray
+            }
+          } catch {
+            Write-Host "Could not stop $serviceName : $_" -ForegroundColor Yellow
+          }
+        }
+      shell: pwsh
+      
+    - name: Deploy services to idle slots
+      run: |
+        $version = "${{ needs.prepare-deployment.outputs.version }}"
+        $targetEnv = "${{ needs.prepare-deployment.outputs.target_environment }}"
+        $artifactDir = "D:\AITB\artifacts\$version"
+        
+        Write-Host "Deploying services to $targetEnv environment..." -ForegroundColor Yellow
+        
+        $services = @(
+          @{ Name = "webapp"; Path = "D:\apps\aitb\webapp\$targetEnv\$version" },
+          @{ Name = "inference"; Path = "D:\apps\aitb\inference\$targetEnv\$version" },
+          @{ Name = "bot"; Path = "D:\apps\aitb\bot\$targetEnv\$version" },
+          @{ Name = "notifier"; Path = "D:\apps\aitb\notifier\$targetEnv\$version" },
+          @{ Name = "dashboard"; Path = "D:\apps\aitb\dashboard\$targetEnv\$version" }
+        )
+        
+        foreach ($service in $services) {
+          $zipFile = "$artifactDir\$($service.Name)-$version.zip"
+          $deployPath = $service.Path
+          
+          if (Test-Path $zipFile) {
+            Write-Host "Deploying $($service.Name) to $deployPath..." -ForegroundColor Cyan
+            
+            # Create deployment directory
+            New-Item -Path $deployPath -ItemType Directory -Force | Out-Null
+            
+            # Extract service
+            Expand-Archive -Path $zipFile -DestinationPath $deployPath -Force
+            
+            # Set up service-specific configuration
+            switch ($service.Name) {
+              "webapp" {
+                # Update appsettings for target environment
+                $appSettings = "$deployPath\appsettings.json"
+                if (Test-Path $appSettings) {
+                  $config = Get-Content $appSettings | ConvertFrom-Json
+                  $config.Logging.LogLevel.Default = "Information"
+                  $config | ConvertTo-Json -Depth 10 | Set-Content $appSettings
+                }
+              }
+              "inference" {
+                # Set up Python virtual environment
+                $pythonExe = "$deployPath\.venv\Scripts\python.exe"
+                if (-not (Test-Path $pythonExe)) {
+                  & python -m venv "$deployPath\.venv"
+                  & "$deployPath\.venv\Scripts\pip.exe" install -r "$deployPath\requirements.txt"
+                }
+              }
+              "bot" {
+                # Set up Python virtual environment
+                $pythonExe = "$deployPath\.venv\Scripts\python.exe"
+                if (-not (Test-Path $pythonExe)) {
+                  & python -m venv "$deployPath\.venv"
+                  & "$deployPath\.venv\Scripts\pip.exe" install -r "$deployPath\requirements.txt"
+                }
+              }
+            }
+            
+            Write-Host "✅ $($service.Name) deployed successfully" -ForegroundColor Green
+          } else {
+            Write-Host "⚠️ Missing artifact: $zipFile" -ForegroundColor Yellow
+          }
+        }
+      shell: pwsh
+      
+    - name: Update service configurations
+      run: |
+        $version = "${{ needs.prepare-deployment.outputs.version }}"
+        $targetEnv = "${{ needs.prepare-deployment.outputs.target_environment }}"
+        
+        Write-Host "Updating service configurations for $targetEnv environment..." -ForegroundColor Yellow
+        
+        # Update service definitions to point to new deployment paths
+        $serviceDefDir = "D:\AITB\ci-cd\service_defs"
+        $services = @("webapp", "inference", "bot", "notifier", "dashboard")
+        
+        foreach ($serviceName in $services) {
+          $defFile = "$serviceDefDir\$serviceName-$targetEnv.json"
+          
+          if (Test-Path $defFile) {
+            $config = Get-Content $defFile | ConvertFrom-Json
+            $config.appDirectory = "D:\apps\aitb\$serviceName\$targetEnv\$version"
+            $config.logging.stdOut = "D:\logs\aitb\$serviceName\$serviceName-$targetEnv-stdout.log"
+            $config.logging.stdErr = "D:\logs\aitb\$serviceName\$serviceName-$targetEnv-stderr.log"
+            
+            # Update ports for target environment
+            if ($targetEnv -eq "green") {
+              switch ($serviceName) {
+                "webapp" { 
+                  $config.environment.ASPNETCORE_URLS = "http://localhost:5002"
+                }
+                "inference" { 
+                  $config.environment.INFERENCE_PORT = "8003"
+                }
+                "dashboard" { 
+                  $config.environment.STREAMLIT_SERVER_PORT = "8503"
+                }
+              }
+            } else {
+              switch ($serviceName) {
+                "webapp" { 
+                  $config.environment.ASPNETCORE_URLS = "http://localhost:5000"
+                }
+                "inference" { 
+                  $config.environment.INFERENCE_PORT = "8001"
+                }
+                "dashboard" { 
+                  $config.environment.STREAMLIT_SERVER_PORT = "8501"
+                }
+              }
+            }
+            
+            $config | ConvertTo-Json -Depth 10 | Set-Content $defFile
+            Write-Host "✅ Updated $serviceName-$targetEnv configuration" -ForegroundColor Green
+          }
+        }
+      shell: pwsh
+
+  start-idle-services:
+    runs-on: windows-latest
+    needs: [prepare-deployment, deploy-to-idle]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Start idle environment services
+      run: |
+        $targetEnv = "${{ needs.prepare-deployment.outputs.target_environment }}"
+        Write-Host "Starting $targetEnv environment services..." -ForegroundColor Yellow
+        
+        $services = @("Inference", "Bot", "WebApp", "Dashboard", "Notifier")
+        foreach ($service in $services) {
+          $serviceName = "AITB-$service-$targetEnv"
+          try {
+            Start-Service -Name $serviceName
+            Write-Host "Started $serviceName" -ForegroundColor Green
+            Start-Sleep -Seconds 5  # Allow service startup time
+          } catch {
+            Write-Host "Failed to start $serviceName : $_" -ForegroundColor Red
+            
+            # Check if service exists
+            $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+            if (-not $svc) {
+              Write-Host "Service $serviceName not installed. Installing..." -ForegroundColor Yellow
+              
+              # Install service using service definition
+              $defFile = "D:\AITB\ci-cd\service_defs\$($service.ToLower())-$targetEnv.json"
+              if (Test-Path $defFile) {
+                & "D:\AITB\ci-cd\scripts\install-service.ps1" -ServiceName $serviceName -DefinitionPath $defFile
+                Start-Service -Name $serviceName
+                Write-Host "Installed and started $serviceName" -ForegroundColor Green
+              }
+            }
+          }
+        }
+      shell: pwsh
+
+  run-acceptance-tests:
+    runs-on: windows-latest
+    needs: [prepare-deployment, start-idle-services]
+    if: ${{ github.event.inputs.skip_health_checks != 'true' }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Wait for services to be ready
+      run: |
+        Write-Host "Waiting for services to initialize..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 30
+      shell: pwsh
+      
+    - name: Run Episode 6 acceptance tests
+      run: |
+        $targetEnv = "${{ needs.prepare-deployment.outputs.target_environment }}"
+        $version = "${{ needs.prepare-deployment.outputs.version }}"
+        
+        Write-Host "Running acceptance tests on $targetEnv environment..." -ForegroundColor Yellow
+        
+        # Determine ports based on target environment
+        if ($targetEnv -eq "green") {
+          $webAppPort = 5002
+          $inferencePort = 8003
+          $dashboardPort = 8503
+        } else {
+          $webAppPort = 5000
+          $inferencePort = 8001
+          $dashboardPort = 8501
+        }
+        
+        # Test endpoints
+        $endpoints = @(
+          @{ Name = "WebApp Health"; Url = "http://localhost:$webAppPort/health/live"; Expected = 200 },
+          @{ Name = "Inference Health"; Url = "http://localhost:$inferencePort/health"; Expected = 200 },
+          @{ Name = "Dashboard"; Url = "http://localhost:$dashboardPort/"; Expected = 200 }
+        )
+        
+        $passed = 0
+        $total = $endpoints.Count
+        
+        foreach ($endpoint in $endpoints) {
+          try {
+            Write-Host "Testing $($endpoint.Name)..." -ForegroundColor Cyan
+            $response = Invoke-WebRequest -Uri $endpoint.Url -TimeoutSec 10 -UseBasicParsing
+            
+            if ($response.StatusCode -eq $endpoint.Expected) {
+              Write-Host "✅ $($endpoint.Name) - Status: $($response.StatusCode)" -ForegroundColor Green
+              $passed++
+            } else {
+              Write-Host "❌ $($endpoint.Name) - Expected: $($endpoint.Expected), Got: $($response.StatusCode)" -ForegroundColor Red
+            }
+          } catch {
+            Write-Host "❌ $($endpoint.Name) - Failed: $($_.Exception.Message)" -ForegroundColor Red
+          }
+        }
+        
+        Write-Host "Acceptance test results: $passed/$total tests passed" -ForegroundColor $(if ($passed -eq $total) { "Green" } else { "Red" })
+        
+        if ($passed -lt $total) {
+          Write-Host "❌ Acceptance tests failed. Deployment aborted." -ForegroundColor Red
+          exit 1
+        }
+        
+        Write-Host "✅ All acceptance tests passed" -ForegroundColor Green
+      shell: pwsh
+
+  switch-traffic:
+    runs-on: windows-latest
+    needs: [prepare-deployment, run-acceptance-tests]
+    if: ${{ always() && (needs.run-acceptance-tests.result == 'success' || github.event.inputs.skip_health_checks == 'true') }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Perform atomic traffic switch
+      run: |
+        $targetEnv = "${{ needs.prepare-deployment.outputs.target_environment }}"
+        $version = "${{ needs.prepare-deployment.outputs.version }}"
+        $dryRun = [bool]"${{ env.DRY_RUN }}"
+        
+        Write-Host "=== ATOMIC TRAFFIC SWITCH ===" -ForegroundColor Cyan
+        Write-Host "Target Environment: $targetEnv" -ForegroundColor Yellow
+        Write-Host "Version: $version" -ForegroundColor Yellow
+        Write-Host "Dry Run: $dryRun" -ForegroundColor Yellow
+        
+        # Execute the environment switch
+        $switchArgs = @(
+          "-TargetEnvironment", $targetEnv,
+          "-Version", $version,
+          "-HealthCheckRetries", "3"
+        )
+        
+        if ($dryRun) {
+          $switchArgs += "-DryRun"
+        }
+        
+        & "D:\AITB\ci-cd\scripts\switch-environment.ps1" @switchArgs
+        
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "❌ Traffic switch failed" -ForegroundColor Red
+          exit 1
+        }
+        
+        Write-Host "✅ Traffic switch completed successfully" -ForegroundColor Green
+      shell: pwsh
+      
+    - name: Verify production endpoints
+      run: |
+        Write-Host "Verifying production endpoints after switch..." -ForegroundColor Yellow
+        
+        $productionEndpoints = @(
+          @{ Name = "Production Home"; Url = "http://localhost/" },
+          @{ Name = "Production Health"; Url = "http://localhost/health" },
+          @{ Name = "Production Inference"; Url = "http://localhost/api/inference/health" },
+          @{ Name = "Production Dashboard"; Url = "http://localhost/dashboard/" }
+        )
+        
+        $verified = 0
+        foreach ($endpoint in $productionEndpoints) {
+          try {
+            $response = Invoke-WebRequest -Uri $endpoint.Url -TimeoutSec 10 -UseBasicParsing
+            if ($response.StatusCode -eq 200) {
+              Write-Host "✅ $($endpoint.Name)" -ForegroundColor Green
+              $verified++
+            }
+          } catch {
+            Write-Host "⚠️ $($endpoint.Name) - $($_.Exception.Message)" -ForegroundColor Yellow
+          }
+        }
+        
+        Write-Host "Production verification: $verified/$($productionEndpoints.Count) endpoints verified" -ForegroundColor Green
+      shell: pwsh
+
+  finalize-deployment:
+    runs-on: windows-latest
+    needs: [prepare-deployment, switch-traffic]
+    if: always()
+    steps:
+    - name: Update deployment status
+      run: |
+        $deploymentId = "${{ needs.prepare-deployment.outputs.deployment_id }}"
+        $success = "${{ needs.switch-traffic.result }}" -eq "success"
+        
+        $statusFile = "D:\logs\aitb\deployment\$deploymentId.json"
+        if (Test-Path $statusFile) {
+          $manifest = Get-Content $statusFile | ConvertFrom-Json
+          $manifest.endTime = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+          $manifest.status = if ($success) { "completed" } else { "failed" }
+          $manifest.finalEnvironment = "${{ needs.prepare-deployment.outputs.target_environment }}"
+          
+          $manifest | ConvertTo-Json -Depth 3 | Set-Content $statusFile
+        }
+        
+        Write-Host "=== DEPLOYMENT SUMMARY ===" -ForegroundColor Cyan
+        Write-Host "Deployment ID: $deploymentId" -ForegroundColor Yellow
+        Write-Host "Status: $(if ($success) { 'SUCCESS' } else { 'FAILED' })" -ForegroundColor $(if ($success) { "Green" } else { "Red" })
+        Write-Host "Final Environment: ${{ needs.prepare-deployment.outputs.target_environment }}" -ForegroundColor Yellow
+        Write-Host "Version: ${{ needs.prepare-deployment.outputs.version }}" -ForegroundColor Yellow
+      shell: pwsh
+      
+    - name: Clean up old deployments
+      run: |
+        Write-Host "Cleaning up old deployment artifacts..." -ForegroundColor Yellow
+        
+        # Keep last 5 deployments
+        $deploymentDir = "D:\logs\aitb\deployment"
+        if (Test-Path $deploymentDir) {
+          $deployments = Get-ChildItem "$deploymentDir\deploy-*.json" | Sort-Object LastWriteTime -Descending
+          if ($deployments.Count -gt 5) {
+            $deployments | Select-Object -Skip 5 | ForEach-Object {
+              Remove-Item $_.FullName -Force
+              Write-Host "Removed old deployment log: $($_.Name)" -ForegroundColor Gray
+            }
+          }
+        }
+        
+        # Clean up old service versions (keep last 3)
+        $services = @("webapp", "inference", "bot", "notifier", "dashboard")
+        $environments = @("blue", "green")
+        
+        foreach ($service in $services) {
+          foreach ($env in $environments) {
+            $servicePath = "D:\apps\aitb\$service\$env"
+            if (Test-Path $servicePath) {
+              $versions = Get-ChildItem $servicePath -Directory | Sort-Object Name -Descending
+              if ($versions.Count -gt 3) {
+                $versions | Select-Object -Skip 3 | ForEach-Object {
+                  Remove-Item $_.FullName -Recurse -Force
+                  Write-Host "Cleaned up old version: $service/$env/$($_.Name)" -ForegroundColor Gray
+                }
+              }
+            }
+          }
+        }
+      shell: pwsh
