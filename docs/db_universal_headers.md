@@ -1,10 +1,10 @@
 # AITB Database Universal Headers
 **Contract-First Database Schema Definition**  
-**Episode 6 - DB Universals**  
+**Episode 9 - Data Contracts (Universal Headers)**  
 **Date:** 2025-10-27  
 
 ## Overview
-This document defines the exact column specifications for all AITB database tables, establishing universal headers that ensure consistency across data ingestion, storage, and retrieval operations. These schemas serve as the single source of truth for all database operations.
+This document defines the exact column specifications for all AITB database tables, establishing universal headers that ensure consistency across data ingestion, storage, and retrieval operations. These schemas serve as the single source of truth for all database operations with daily Parquet exports to D:\archives\parquet\YYYY-MM-DD\.
 
 ---
 
@@ -249,48 +249,40 @@ All tables: **Indefinite retention** in daily parquet exports
 
 ### Directory Structure
 ```
-D:\docker\archives\parquet\
-├── candles\
-│   ├── 2025-10-27\
+D:\archives\parquet\
+├── 2025-10-27\
+│   ├── candles\
 │   │   ├── BTCUSDT_1m_2025-10-27.parquet
 │   │   ├── BTCUSDT_5m_2025-10-27.parquet
 │   │   ├── BTCUSDT_1h_2025-10-27.parquet
 │   │   └── BTCUSDT_1d_2025-10-27.parquet
-│   └── 2025-10-28\
-│       └── ...
-├── trades\
-│   ├── 2025-10-27\
+│   ├── trades\
 │   │   ├── BTCUSDT_trades_2025-10-27_00.parquet (hourly splits)
 │   │   ├── BTCUSDT_trades_2025-10-27_01.parquet
 │   │   └── ...
-│   └── 2025-10-28\
-│       └── ...
-├── orderbook\
-│   ├── 2025-10-27\
+│   ├── orderbook\
 │   │   ├── BTCUSDT_orderbook_2025-10-27_00.parquet
 │   │   └── ...
-│   └── 2025-10-28\
-│       └── ...
-├── futures_ctx\
-│   ├── 2025-10-27\
+│   ├── futures_ctx\
 │   │   ├── BTCUSDT-PERP_funding_2025-10-27.parquet
 │   │   ├── BTCUSDT-PERP_oi_2025-10-27.parquet
 │   │   └── ...
-│   └── 2025-10-28\
-│       └── ...
-├── liquidations\
-│   ├── 2025-10-27\
+│   ├── liquidations\
 │   │   ├── liquidations_2025-10-27.parquet
 │   │   └── ...
-│   └── 2025-10-28\
+│   └── features\
+│       ├── BTCUSDT_technical_2025-10-27.parquet
+│       ├── BTCUSDT_sentiment_2025-10-27.parquet
 │       └── ...
-└── features\
-    ├── 2025-10-27\
-    │   ├── BTCUSDT_technical_2025-10-27.parquet
-    │   ├── BTCUSDT_sentiment_2025-10-27.parquet
-    │   └── ...
-    └── 2025-10-28\
-        └── ...
+├── 2025-10-28\
+│   ├── candles\
+│   ├── trades\
+│   ├── orderbook\
+│   ├── futures_ctx\
+│   ├── liquidations\
+│   └── features\
+└── 2025-10-29\
+    └── ...
 ```
 
 ### Export Naming Conventions
@@ -407,10 +399,10 @@ This document establishes the **contract-first** approach for AITB database oper
 4. **Documentation First:** Implementation follows documentation
 5. **Cross-Team Agreement:** Changes require consensus across trading, ML, and data teams
 
-**Next Phase:** Episode 7 will implement these schemas with full migration scripts and validation procedures.
+**Next Phase:** Episode 9 complete - Database universal headers established with daily Parquet export paths to D:\archives\parquet\YYYY-MM-DD\.
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: 2025-10-27*  
-*Status: Contract Approved - Ready for Implementation*
+*Document Version: 2.0*  
+*Last Updated: 2025-10-27 (Episode 9)*  
+*Status: Episode 9 Complete - Universal Headers with Parquet Export Specification*

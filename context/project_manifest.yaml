@@ -131,9 +131,18 @@ environment_keys:
   - LOG_LEVEL
   - MCP_BASE_URL
 
-# Database Configuration (Episode 6)
+# Database Configuration (Episode 9)
 database:
   schema_documentation: "docs/db_universal_headers.md"
+  description: "Episode 9 - Universal database headers with exact column definitions and daily Parquet exports"
+  
+  export_specification:
+    base_path: "D:\\archives\\parquet"
+    pattern: "D:\\archives\\parquet\\YYYY-MM-DD\\"
+    format: "Daily Parquet exports organized by date"
+    schedule: "02:00 UTC daily"
+    compression: "snappy"
+    retention: "indefinite"
   
   tables:
     candles:
@@ -174,11 +183,12 @@ database:
   
   archival:
     format: "parquet"
-    base_path: "D:\\docker\\archives\\parquet"
+    base_path: "D:\\archives\\parquet"
+    structure_pattern: "D:\\archives\\parquet\\YYYY-MM-DD\\"
     schedule: "02:00 UTC daily"
     compression: "snappy"
     retention: "indefinite"
-    partitioning: "daily"
+    partitioning: "daily by date"
     
     export_patterns:
       candles: "{SYMBOL}_{TIMEFRAME}_{YYYY-MM-DD}.parquet"
