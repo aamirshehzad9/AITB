@@ -1,218 +1,36 @@
 # AITB Project Manifest
 # Agents MUST read this file before any action
-version: "1.0"
-project:
-  name: "AITB - AI Trading Bot"
-  description: "Multi-service AI trading system with real-time data processing and ML inference"
+runtime: host-native
+project: AITB
+agents_must_read_this_first: true
   
-services:
-  # Service definitions with ports from Docker Compose
-  influxdb:
-    port: 8086
-    type: "time-series-database"
-    image: "influxdb:2.7-alpine"
-    container: "aitb-influxdb"
-    
-  telegraf:
-    type: "metrics-collector"
-    image: "telegraf:1.28-alpine"
-    container: "aitb-telegraf"
-    
-  grafana:
-    port: 3001
-    type: "visualization-dashboard"
-    image: "grafana/grafana-oss:10.2.0"
-    container: "aitb-grafana"
-    
-  inference:
-    port: 8001
-    type: "ml-inference-service"
-    build: "./services/inference"
-    container: "aitb-inference"
-    
-  bot:
-    type: "trading-engine"
-    build: "./services/bot"
-    container: "aitb-bot"
-    
-  dashboard:
-    port: 8501
-    type: "streamlit-dashboard"
-    build: "./services/dashboard"
-    container: "aitb-dashboard"
-    
-  aitb-webapp:
-    port: 5000
-    type: "aspnet-webapp"
-    build: "./AITB.WebApp"
-    container: "aitb-webapp"
-    
-  notifier:
-    type: "notification-service"
-    build: "./services/notifier"
-    container: "aitb-notifier"
-    
-  watchtower:
-    type: "container-updater"
-    image: "containrrr/watchtower:1.6.0"
-    container: "aitb-watchtower"
+services_and_ports:
+  influxdb: 8086
+  grafana: 3001
+  postgres: 5432
+  sqlserver: 1433
+  inference: 8001
+  api_dashboard: 8501
+  webapp: 5000
+  bot: no_external
+  notifier: no_external
 
-# Start order as specified
-start_order:
-  - influxdb
-  - telegraf
-  - grafana
-  - inference
-  - bot
-  - dashboard
-  - aitb-webapp
-  - notifier
-  - watchtower
+folders:
+  - "D:\\apps\\aitb\\"
+  - "D:\\configs\\aitb\\"
+  - "D:\\logs\\aitb\\"
+  - "D:\\data\\influxdb\\"
+  - "D:\\data\\postgres\\"
+  - "D:\\data\\sqlserver\\"
+  - "D:\\archives\\parquet\\"
 
-# Volume mappings - all writable paths bind-mounted to D:\docker\{service}\...
-volumes:
-  influxdb_data:
-    host_path: "D:\\docker\\influxdb\\data"
-    container_path: "/var/lib/influxdb2"
-    
-  influxdb_config:
-    host_path: "D:\\docker\\influxdb\\config"
-    container_path: "/etc/influxdb2"
-    
-  grafana_data:
-    host_path: "D:\\docker\\grafana\\data"
-    container_path: "/var/lib/grafana"
-    
-  bot_data:
-    host_path: "D:\\docker\\bot\\data"
-    container_path: "/app/data"
-    
-  shared_models:
-    host_path: "D:\\docker\\models"
-    container_path: "/app/data/models"
-    description: "Shared ML models for bot and inference services"
-    
-  shared_logs:
-    host_path: "D:\\docker\\logs"
-    container_path: "/app/logs or /var/log/{service}"
-    description: "Centralized logging for all services"
+do_dont:
+  - "read-only in staging/prod"
+  - "never rebuild during a run"
+  - "secrets never committed"
 
-# Environment variable keys (values from D:\Myenv.txt)
-environment_keys:
-  # InfluxDB
-  - INFLUX_USERNAME
-  - INFLUX_PASSWORD
-  - INFLUX_ORG
-  - INFLUX_BUCKET
-  - INFLUX_TOKEN
-  - INFLUX_URL
-  
-  # Trading APIs
-  - COINAPI_KEY
-  - COINMARKETCAP_KEY
-  - BINANCE_API_KEY
-  - BINANCE_SECRET_KEY
-  - BINANCE_BASE_URL
-  - BINANCE_STREAM_URL
-  
-  # AI/ML
-  - HF_TOKEN
-  - HF_API_KEY
-  
-  # Notifications
-  - TG_BOT_TOKEN
-  - TG_CHAT_ID
-  
-  # Grafana
-  - GRAFANA_USER
-  - GRAFANA_PASSWORD
-  
-  # Runtime
-  - LOG_LEVEL
-  - MCP_BASE_URL
-
-# Database Configuration (Episode 6)
-database:
-  schema_documentation: "docs/db_universal_headers.md"
-  
-  tables:
-    candles:
-      description: "OHLCV candlestick data for technical analysis"
-      primary_key: "(symbol, timeframe, timestamp)"
-      retention_hot: "90 days (1m,5m), 1 year (1h,1d)"
-      retention_warm: "2 years (compressed)"
-      
-    trades:
-      description: "Individual trade execution records"
-      primary_key: "id"
-      retention_hot: "30 days"
-      retention_warm: "1 year (compressed)"
-      
-    orderbook:
-      description: "Market depth snapshots"
-      primary_key: "(symbol, timestamp, side, price_level)"
-      retention_hot: "7 days"
-      retention_warm: "6 months (compressed)"
-      
-    futures_ctx:
-      description: "Futures context (funding rates, open interest)"
-      primary_key: "(symbol, timestamp, context_type)"
-      retention_hot: "90 days"
-      retention_warm: "1 year (compressed)"
-      
-    liquidations:
-      description: "Forced position closure events"
-      primary_key: "id"
-      retention_hot: "180 days"
-      retention_warm: "2 years (compressed)"
-      
-    features:
-      description: "ML feature store"
-      primary_key: "(symbol, timestamp, feature_set, feature_name)"
-      retention_hot: "30 days"
-      retention_warm: "6 months (compressed)"
-  
-  archival:
-    format: "parquet"
-    base_path: "D:\\docker\\archives\\parquet"
-    schedule: "02:00 UTC daily"
-    compression: "snappy"
-    retention: "indefinite"
-    partitioning: "daily"
-    
-    export_patterns:
-      candles: "{SYMBOL}_{TIMEFRAME}_{YYYY-MM-DD}.parquet"
-      trades: "{SYMBOL}_trades_{YYYY-MM-DD}_{HH}.parquet"
-      orderbook: "{SYMBOL}_orderbook_{YYYY-MM-DD}_{HH}.parquet"
-      futures_ctx: "{SYMBOL}_{CONTEXT_TYPE}_{YYYY-MM-DD}.parquet"
-      liquidations: "liquidations_{YYYY-MM-DD}.parquet"
-      features: "{SYMBOL}_{FEATURE_TYPE}_{YYYY-MM-DD}.parquet"
-
-# Acceptance checks (see Episode 5)
-acceptance_checks:
-  health_endpoints:
-    - service: "inference"
-      url: "http://localhost:8001/health"
-      expected: 200
-    - service: "bot"
-      url: "http://localhost:8000/health"
-      expected: 200
-    - service: "aitb-webapp"
-      url: "http://localhost:5000/health/live"
-      expected: 200
-    - service: "aitb-webapp-api"
-      url: "http://localhost:5000/api/status"
-      expected: 200
-      
-  service_health:
-    - all_services_running: true
-    - bot_heartbeat_logs: true
-    - grafana_datasource_ok: true
-    - webapp_home_renders: true
-    - api_ping_accessible: true
-
-# Configuration
-mockable: false  # Mocks are forbidden unless this is set to true
-security:
-  - no_secrets_in_commits: true
-  - env_values_from_external: "D:\\Myenv.txt"
+health_urls:
+  - "http://localhost:8001/health"
+  - "http://localhost:8501/health"  # when wired
+  - "http://localhost:5000"
+  - "bot heartbeat ≤60s"
