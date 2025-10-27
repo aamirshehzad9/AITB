@@ -97,6 +97,60 @@ volumes:
     container_path: "/app/logs or /var/log/{service}"
     description: "Centralized logging for all services"
 
+# Environment variable keys mapping (which service reads which keys)
+environment_keys_mapping:
+  webapp:
+    - INFLUX_URL
+    - INFLUX_ORG
+    - INFLUX_BUCKET
+    - INFLUX_TOKEN
+    - GRAFANA_USER
+    - GRAFANA_PASSWORD
+    - MCP_BASE_URL
+    
+  inference:
+    - MCP_BASE_URL
+    - INFERENCE_API_BASE
+    - GOOGLE_STUDIO_API_KEY
+    - HUGGINGFACE_API_KEY_01
+    - HUGGINGFACE_API_KEY_02
+    - HUGGINGFACE_API_KEY_03
+    - INFLUX_URL
+    - INFLUX_ORG
+    - INFLUX_BUCKET
+    - INFLUX_TOKEN
+    
+  bot:
+    - BINANCE_API_KEY
+    - BINANCE_SECRET_KEY
+    - MY_BINANCE_API_KEY
+    - MY_BINANCE_SECRET_KEY
+    - COINAPI_KEY
+    - INFLUX_URL
+    - INFLUX_ORG
+    - INFLUX_BUCKET
+    - INFLUX_TOKEN
+    - INFERENCE_API_BASE
+    - MCP_BASE_URL
+    
+  notifier:
+    - TELEGRAM_BOT_NAME
+    - TELEGRAM_TOKEN
+    - TELEGRAM_CHAT_ID
+    - INFLUX_URL
+    - INFLUX_ORG
+    - INFLUX_BUCKET
+    - INFLUX_TOKEN
+    
+  dashboard:
+    - INFLUX_URL
+    - INFLUX_ORG
+    - INFLUX_BUCKET
+    - INFLUX_TOKEN
+    - GRAFANA_USER
+    - GRAFANA_PASSWORD
+    - MCP_BASE_URL
+
 # Environment variable keys (values from D:\Myenv.txt)
 environment_keys:
   # InfluxDB
