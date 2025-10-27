@@ -1,0 +1,316 @@
+# AITB Build Pipeline
+# Automated build pipeline for all AITB services
+# Produces versioned immutable zip artifacts with checksums
+
+name: AITB Build Pipeline
+
+on:
+  push:
+    branches: [ main, develop, release/* ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      configuration:
+        description: 'Build configuration'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+        - Release
+        - Debug
+
+env:
+  DOTNET_VERSION: '8.0'
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+  BUILD_CONFIGURATION: ${{ github.event.inputs.configuration || 'Release' }}
+  BUILD_VERSION: ${{ github.event.inputs.version || '1.0.0' }}
+
+jobs:
+  prepare:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      configuration: ${{ steps.config.outputs.configuration }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set version
+      id: version
+      run: |
+        if ("${{ github.event.inputs.version }}" -eq "") {
+          $version = "1.0.${{ github.run_number }}"
+        } else {
+          $version = "${{ github.event.inputs.version }}"
+        }
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "Building version: $version"
+      shell: pwsh
+      
+    - name: Set configuration
+      id: config
+      run: |
+        $config = "${{ env.BUILD_CONFIGURATION }}"
+        echo "configuration=$config" >> $env:GITHUB_OUTPUT
+        echo "Build configuration: $config"
+      shell: pwsh
+
+  build-webapp:
+    runs-on: windows-latest
+    needs: prepare
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Create dist directory
+      run: |
+        New-Item -Path "D:\AITB\dist" -ItemType Directory -Force
+      shell: pwsh
+      
+    - name: Build WebApp
+      run: |
+        & ".\AITB.WebApp\build.ps1" -Version "${{ needs.prepare.outputs.version }}" -Configuration "${{ needs.prepare.outputs.configuration }}"
+      shell: pwsh
+      
+    - name: Upload WebApp artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: webapp-${{ needs.prepare.outputs.version }}
+        path: |
+          D:\AITB\dist\webapp-${{ needs.prepare.outputs.version }}.zip
+          D:\AITB\dist\webapp-${{ needs.prepare.outputs.version }}.zip.sha256
+        retention-days: 30
+
+  build-inference:
+    runs-on: windows-latest
+    needs: prepare
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Create dist directory
+      run: |
+        New-Item -Path "D:\AITB\dist" -ItemType Directory -Force
+      shell: pwsh
+      
+    - name: Build Inference Service
+      run: |
+        & ".\services\inference\build.ps1" -Version "${{ needs.prepare.outputs.version }}" -Configuration "${{ needs.prepare.outputs.configuration }}"
+      shell: pwsh
+      
+    - name: Upload Inference artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: inference-${{ needs.prepare.outputs.version }}
+        path: |
+          D:\AITB\dist\inference-${{ needs.prepare.outputs.version }}.zip
+          D:\AITB\dist\inference-${{ needs.prepare.outputs.version }}.zip.sha256
+        retention-days: 30
+
+  build-bot:
+    runs-on: windows-latest
+    needs: prepare
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Create dist directory
+      run: |
+        New-Item -Path "D:\AITB\dist" -ItemType Directory -Force
+      shell: pwsh
+      
+    - name: Build Trading Bot
+      run: |
+        & ".\services\bot\build.ps1" -Version "${{ needs.prepare.outputs.version }}" -Configuration "${{ needs.prepare.outputs.configuration }}"
+      shell: pwsh
+      
+    - name: Upload Bot artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: bot-${{ needs.prepare.outputs.version }}
+        path: |
+          D:\AITB\dist\bot-${{ needs.prepare.outputs.version }}.zip
+          D:\AITB\dist\bot-${{ needs.prepare.outputs.version }}.zip.sha256
+        retention-days: 30
+
+  build-notifier:
+    runs-on: windows-latest
+    needs: prepare
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Create dist directory
+      run: |
+        New-Item -Path "D:\AITB\dist" -ItemType Directory -Force
+      shell: pwsh
+      
+    - name: Build Notifier Service
+      run: |
+        & ".\services\notifier\build.ps1" -Version "${{ needs.prepare.outputs.version }}" -Configuration "${{ needs.prepare.outputs.configuration }}"
+      shell: pwsh
+      
+    - name: Upload Notifier artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: notifier-${{ needs.prepare.outputs.version }}
+        path: |
+          D:\AITB\dist\notifier-${{ needs.prepare.outputs.version }}.zip
+          D:\AITB\dist\notifier-${{ needs.prepare.outputs.version }}.zip.sha256
+        retention-days: 30
+
+  build-dashboard:
+    runs-on: windows-latest
+    needs: prepare
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Create dist directory
+      run: |
+        New-Item -Path "D:\AITB\dist" -ItemType Directory -Force
+      shell: pwsh
+      
+    - name: Build Dashboard Service
+      run: |
+        & ".\services\dashboard\build.ps1" -Version "${{ needs.prepare.outputs.version }}" -Configuration "${{ needs.prepare.outputs.configuration }}"
+      shell: pwsh
+      
+    - name: Upload Dashboard artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: dashboard-${{ needs.prepare.outputs.version }}
+        path: |
+          D:\AITB\dist\dashboard-${{ needs.prepare.outputs.version }}.zip
+          D:\AITB\dist\dashboard-${{ needs.prepare.outputs.version }}.zip.sha256
+        retention-days: 30
+
+  package-release:
+    runs-on: windows-latest
+    needs: [prepare, build-webapp, build-inference, build-bot, build-notifier, build-dashboard]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: ./artifacts
+        
+    - name: Create release package
+      run: |
+        $version = "${{ needs.prepare.outputs.version }}"
+        $releaseDir = "aitb-release-$version"
+        
+        # Create release directory structure
+        New-Item -Path $releaseDir -ItemType Directory -Force
+        New-Item -Path "$releaseDir\services" -ItemType Directory -Force
+        New-Item -Path "$releaseDir\checksums" -ItemType Directory -Force
+        
+        # Copy all service packages
+        Get-ChildItem -Path "artifacts" -Recurse -Filter "*.zip" | ForEach-Object {
+          Copy-Item $_.FullName "$releaseDir\services\"
+        }
+        
+        # Copy all checksums
+        Get-ChildItem -Path "artifacts" -Recurse -Filter "*.sha256" | ForEach-Object {
+          Copy-Item $_.FullName "$releaseDir\checksums\"
+        }
+        
+        # Create release manifest
+        $manifest = @{
+          version = $version
+          buildTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
+          configuration = "${{ needs.prepare.outputs.configuration }}"
+          gitCommit = "${{ github.sha }}"
+          gitRef = "${{ github.ref }}"
+          services = @(
+            @{ name = "webapp"; package = "webapp-$version.zip" }
+            @{ name = "inference"; package = "inference-$version.zip" }
+            @{ name = "bot"; package = "bot-$version.zip" }
+            @{ name = "notifier"; package = "notifier-$version.zip" }
+            @{ name = "dashboard"; package = "dashboard-$version.zip" }
+          )
+        }
+        $manifest | ConvertTo-Json -Depth 3 | Set-Content "$releaseDir\release-manifest.json"
+        
+        # Create master checksum file
+        Get-ChildItem "$releaseDir\services\*.zip" | ForEach-Object {
+          $hash = Get-FileHash $_.FullName -Algorithm SHA256
+          "$($hash.Hash)  $($_.Name)" | Add-Content "$releaseDir\checksums\master-checksums.sha256"
+        }
+        
+        # Create release archive
+        Compress-Archive -Path "$releaseDir\*" -DestinationPath "aitb-release-$version.zip" -Force
+        
+        echo "Release package created: aitb-release-$version.zip"
+      shell: pwsh
+      
+    - name: Upload release package
+      uses: actions/upload-artifact@v3
+      with:
+        name: aitb-release-${{ needs.prepare.outputs.version }}
+        path: aitb-release-${{ needs.prepare.outputs.version }}.zip
+        retention-days: 90
+        
+    - name: Create GitHub Release
+      if: github.ref == 'refs/heads/main'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ needs.prepare.outputs.version }}
+        release_name: AITB Release v${{ needs.prepare.outputs.version }}
+        body: |
+          ## AITB Release v${{ needs.prepare.outputs.version }}
+          
+          ### Services Included
+          - WebApp v${{ needs.prepare.outputs.version }}
+          - Inference Service v${{ needs.prepare.outputs.version }}
+          - Trading Bot v${{ needs.prepare.outputs.version }}
+          - Notifier Service v${{ needs.prepare.outputs.version }}
+          - Dashboard Service v${{ needs.prepare.outputs.version }}
+          
+          ### Build Information
+          - Configuration: ${{ needs.prepare.outputs.configuration }}
+          - Git Commit: ${{ github.sha }}
+          - Build Time: ${{ github.run_started_at }}
+          
+          ### Deployment
+          Use the deployment scripts in `ci-cd/runbooks/` for staging and production deployment.
+          
+          ### Verification
+          All packages include SHA256 checksums for integrity verification.
+        draft: false
+        prerelease: false
