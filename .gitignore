@@ -5,6 +5,9 @@
 .env.test
 .env.production
 
+# Local configuration files with secrets (keep structure, ignore values)
+configs/aitb/*/.env
+
 # Data directories - sensitive trading data
 /data/
 data/
