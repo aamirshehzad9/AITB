@@ -1,0 +1,123 @@
+{
+    "buildTime":  "2025-10-27 08:18:00 UTC",
+    "version":  "1.0.0",
+    "failedCount":  5,
+    "outputPath":  "D:\\AITB\\dist",
+    "totalBuildTime":  0.24657939999999998,
+    "services":  [
+                     {
+                         "Size":  0,
+                         "Service":  "webapp",
+                         "Checksum":  null,
+                         "Status":  "Failed",
+                         "SizeMB":  0,
+                         "Error":  "At D:\\AITB\\AITB.WebApp\\build.ps1:144 char:50\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                  ~~\nUnexpected token \u0027MB\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\AITB.WebApp\\build.ps1:144 char:49\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                 ~\nMissing closing \u0027)\u0027 in expression.\r\n\r\nAt D:\\AITB\\AITB.WebApp\\build.ps1:24 char:5\r\n+ try {\r\n+     ~\nMissing closing \u0027}\u0027 in statement block or type definition.\r\n\r\nAt D:\\AITB\\AITB.WebApp\\build.ps1:144 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nThe Try statement is missing its Catch or Finally block.\r\n\r\nAt D:\\AITB\\AITB.WebApp\\build.ps1:144 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nUnexpected token \u0027)\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\AITB.WebApp\\build.ps1:145 char:17\r\n+     Write-Host \"🔒 Checksum: $ChecksumFile\" -ForegroundColor Green\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nUnexpected token \u0027🔒 Checksum: $ChecksumFile\"\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\AITB.WebApp\\build.ps1:149 char:60\r\n+ ... st \"`n❌ Build failed: $($_.Exception.Message)\" -ForegroundColor Red\r\n+                                                    ~~~~~~~~~~~~~~~~~~~~~~\nThe string is missing the terminator: \".",
+                         "ZipFile":  null,
+                         "BuildTime":  {
+                                           "Ticks":  737789,
+                                           "Days":  0,
+                                           "Hours":  0,
+                                           "Milliseconds":  73,
+                                           "Minutes":  0,
+                                           "Seconds":  0,
+                                           "TotalDays":  8.5392245370370366E-07,
+                                           "TotalHours":  2.0494138888888889E-05,
+                                           "TotalMilliseconds":  73.778900000000007,
+                                           "TotalMinutes":  0.0012296483333333334,
+                                           "TotalSeconds":  0.0737789
+                                       }
+                     },
+                     {
+                         "Size":  0,
+                         "Service":  "inference",
+                         "Checksum":  null,
+                         "Status":  "Failed",
+                         "SizeMB":  0,
+                         "Error":  "At D:\\AITB\\services\\inference\\build.ps1:233 char:50\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                  ~~\nUnexpected token \u0027MB\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\inference\\build.ps1:233 char:49\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                 ~\nMissing closing \u0027)\u0027 in expression.\r\n\r\nAt D:\\AITB\\services\\inference\\build.ps1:23 char:5\r\n+ try {\r\n+     ~\nMissing closing \u0027}\u0027 in statement block or type definition.\r\n\r\nAt D:\\AITB\\services\\inference\\build.ps1:233 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nThe Try statement is missing its Catch or Finally block.\r\n\r\nAt D:\\AITB\\services\\inference\\build.ps1:233 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nUnexpected token \u0027)\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\inference\\build.ps1:234 char:17\r\n+     Write-Host \"🔒 Checksum: $ChecksumFile\" -ForegroundColor Green\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nUnexpected token \u0027🔒 Checksum: $ChecksumFile\"\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\inference\\build.ps1:238 char:60\r\n+ ... st \"`n❌ Build failed: $($_.Exception.Message)\" -ForegroundColor Red\r\n+                                                    ~~~~~~~~~~~~~~~~~~~~~~\nThe string is missing the terminator: \".",
+                         "ZipFile":  null,
+                         "BuildTime":  {
+                                           "Ticks":  290762,
+                                           "Days":  0,
+                                           "Hours":  0,
+                                           "Milliseconds":  29,
+                                           "Minutes":  0,
+                                           "Seconds":  0,
+                                           "TotalDays":  3.3653009259259259E-07,
+                                           "TotalHours":  8.0767222222222212E-06,
+                                           "TotalMilliseconds":  29.0762,
+                                           "TotalMinutes":  0.00048460333333333333,
+                                           "TotalSeconds":  0.0290762
+                                       }
+                     },
+                     {
+                         "Size":  0,
+                         "Service":  "bot",
+                         "Checksum":  null,
+                         "Status":  "Failed",
+                         "SizeMB":  0,
+                         "Error":  "At D:\\AITB\\services\\bot\\build.ps1:272 char:50\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                  ~~\nUnexpected token \u0027MB\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\bot\\build.ps1:272 char:49\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                 ~\nMissing closing \u0027)\u0027 in expression.\r\n\r\nAt D:\\AITB\\services\\bot\\build.ps1:23 char:5\r\n+ try {\r\n+     ~\nMissing closing \u0027}\u0027 in statement block or type definition.\r\n\r\nAt D:\\AITB\\services\\bot\\build.ps1:272 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nThe Try statement is missing its Catch or Finally block.\r\n\r\nAt D:\\AITB\\services\\bot\\build.ps1:272 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nUnexpected token \u0027)\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\bot\\build.ps1:273 char:17\r\n+     Write-Host \"🔒 Checksum: $ChecksumFile\" -ForegroundColor Green\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nUnexpected token \u0027🔒 Checksum: $ChecksumFile\"\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\bot\\build.ps1:275 char:19\r\n+ ... ite-Host \"💓 Heartbeat: D:\\logs\\aitb\\bot\\bot-heartbeat.log\" -Foregr ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nThe string is missing the terminator: \u0027.",
+                         "ZipFile":  null,
+                         "BuildTime":  {
+                                           "Ticks":  119990,
+                                           "Days":  0,
+                                           "Hours":  0,
+                                           "Milliseconds":  11,
+                                           "Minutes":  0,
+                                           "Seconds":  0,
+                                           "TotalDays":  1.3887731481481481E-07,
+                                           "TotalHours":  3.3330555555555555E-06,
+                                           "TotalMilliseconds":  11.999,
+                                           "TotalMinutes":  0.00019998333333333333,
+                                           "TotalSeconds":  0.011999
+                                       }
+                     },
+                     {
+                         "Size":  0,
+                         "Service":  "notifier",
+                         "Checksum":  null,
+                         "Status":  "Failed",
+                         "SizeMB":  0,
+                         "Error":  "At D:\\AITB\\services\\notifier\\build.ps1:284 char:50\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                  ~~\nUnexpected token \u0027MB\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\notifier\\build.ps1:284 char:49\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                 ~\nMissing closing \u0027)\u0027 in expression.\r\n\r\nAt D:\\AITB\\services\\notifier\\build.ps1:23 char:5\r\n+ try {\r\n+     ~\nMissing closing \u0027}\u0027 in statement block or type definition.\r\n\r\nAt D:\\AITB\\services\\notifier\\build.ps1:284 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nThe Try statement is missing its Catch or Finally block.\r\n\r\nAt D:\\AITB\\services\\notifier\\build.ps1:284 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nUnexpected token \u0027)\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\notifier\\build.ps1:285 char:17\r\n+     Write-Host \"🔒 Checksum: $ChecksumFile\" -ForegroundColor Green\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nUnexpected token \u0027🔒 Checksum: $ChecksumFile\"\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\notifier\\build.ps1:289 char:60\r\n+ ... st \"`n❌ Build failed: $($_.Exception.Message)\" -ForegroundColor Red\r\n+                                                    ~~~~~~~~~~~~~~~~~~~~~~\nThe string is missing the terminator: \".",
+                         "ZipFile":  null,
+                         "BuildTime":  {
+                                           "Ticks":  771862,
+                                           "Days":  0,
+                                           "Hours":  0,
+                                           "Milliseconds":  77,
+                                           "Minutes":  0,
+                                           "Seconds":  0,
+                                           "TotalDays":  8.9335879629629628E-07,
+                                           "TotalHours":  2.1440611111111112E-05,
+                                           "TotalMilliseconds":  77.1862,
+                                           "TotalMinutes":  0.0012864366666666667,
+                                           "TotalSeconds":  0.0771862
+                                       }
+                     },
+                     {
+                         "Size":  0,
+                         "Service":  "dashboard",
+                         "Checksum":  null,
+                         "Status":  "Failed",
+                         "SizeMB":  0,
+                         "Error":  "At D:\\AITB\\services\\dashboard\\build.ps1:356 char:50\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                  ~~\nUnexpected token \u0027MB\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\dashboard\\build.ps1:356 char:49\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                 ~\nMissing closing \u0027)\u0027 in expression.\r\n\r\nAt D:\\AITB\\services\\dashboard\\build.ps1:23 char:5\r\n+ try {\r\n+     ~\nMissing closing \u0027}\u0027 in statement block or type definition.\r\n\r\nAt D:\\AITB\\services\\dashboard\\build.ps1:356 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nThe Try statement is missing its Catch or Finally block.\r\n\r\nAt D:\\AITB\\services\\dashboard\\build.ps1:356 char:52\r\n+     Write-Host \"📦 Package: $ZipPath ($ZipSize MB)\" -ForegroundColo ...\r\n+                                                    ~\nUnexpected token \u0027)\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\dashboard\\build.ps1:357 char:17\r\n+     Write-Host \"🔒 Checksum: $ChecksumFile\" -ForegroundColor Green\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nUnexpected token \u0027🔒 Checksum: $ChecksumFile\"\u0027 in expression or statement.\r\n\r\nAt D:\\AITB\\services\\dashboard\\build.ps1:362 char:60\r\n+ ... st \"`n❌ Build failed: $($_.Exception.Message)\" -ForegroundColor Red\r\n+                                                    ~~~~~~~~~~~~~~~~~~~~~~\nThe string is missing the terminator: \".",
+                         "ZipFile":  null,
+                         "BuildTime":  {
+                                           "Ticks":  116192,
+                                           "Days":  0,
+                                           "Hours":  0,
+                                           "Milliseconds":  11,
+                                           "Minutes":  0,
+                                           "Seconds":  0,
+                                           "TotalDays":  1.3448148148148148E-07,
+                                           "TotalHours":  3.2275555555555554E-06,
+                                           "TotalMilliseconds":  11.619200000000001,
+                                           "TotalMinutes":  0.00019365333333333333,
+                                           "TotalSeconds":  0.0116192
+                                       }
+                     }
+                 ],
+    "totalSize":  0,
+    "totalSizeMB":  0,
+    "configuration":  "Release",
+    "successCount":  0
+}
