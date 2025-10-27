@@ -211,6 +211,79 @@ acceptance_checks:
     - webapp_home_renders: true
     - api_ping_accessible: true
 
+# TradingView-Aligned API Contracts (Episode 8)
+contracts:
+  api_base_path: "contracts/api/"
+  description: "TradingView-compatible broker API contracts for market data and trading operations"
+  version: "1.0.0"
+  
+  market_data:
+    history:
+      file: "history.json"
+      endpoint: "/history"
+      description: "Historical OHLCV data with 00:00 UTC daily bars rule"
+      requirements:
+        - "Daily bars MUST start at 00:00 UTC"
+        - "≤5% missing bars rule documented and enforced"
+        - "OHLC validation with positive volumes"
+      fields: ["s", "t[]", "o[]", "h[]", "l[]", "c[]", "v[]"]
+      
+    quotes:
+      file: "quotes.json"
+      endpoint: "/quotes"
+      description: "Real-time bid/ask quotes with market data"
+      fields: ["s", "t", "bid", "ask", "spread", "v"]
+      real_time: true
+      max_latency_ms: 100
+      
+    depth:
+      file: "depth.json"
+      endpoint: "/depth"
+      description: "Level 2 order book depth data"
+      fields: ["s", "bids[]", "asks[]", "t"]
+      real_time: true
+      max_staleness_ms: 1000
+      
+  metadata:
+    symbol_info:
+      file: "symbol_info.json"
+      endpoint: "/symbol_info"
+      description: "Symbol specifications and trading rules"
+      purpose: "TradingView symbol configuration"
+      
+    groups:
+      file: "groups.json"
+      endpoint: "/groups"
+      description: "Symbol grouping and permission management"
+      purpose: "Access control and symbol organization"
+      
+    permissions:
+      file: "permissions.json"
+      endpoint: "/permissions"
+      description: "User permissions and trading restrictions"
+      purpose: "User access control and risk management"
+      
+  trading_operations:
+    orders:
+      file: "orders.json"
+      endpoints:
+        place: "POST /orders"
+        preview: "POST /orders/preview"
+        modify: "PUT /orders/{id}"
+        cancel: "DELETE /orders/{id}"
+        list: "GET /orders"
+        get: "GET /orders/{id}"
+      description: "Complete order lifecycle with preview capabilities"
+      required_fields:
+        - "currentBid"
+        - "currentAsk"
+        - "timestamp"
+        - "commission"
+      features:
+        - "Order preview with cost calculation"
+        - "Risk validation and warnings"
+        - "Market impact assessment"
+
 # Configuration
 mockable: false  # Mocks are forbidden unless this is set to true
 security:
